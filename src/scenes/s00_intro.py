@@ -1,25 +1,76 @@
-from manim import *
-from PIL import Image
 import numpy as np
-import os, tempfile
+import os
+import tempfile
+from PIL import Image
+from manim import *
 
 
 class DimensionHook(Scene):
     GRID_SIZE = 56  # exact 2x NEAREST downscale of 112x112 → 3,136 px
-    SQ = 0.1        # manim units per pixel square (grid = 5.6×5.6 units)
+    SQ = 0.1  # manim units per pixel square (grid = 5.6×5.6 units)
 
     def construct(self):
         G = self.GRID_SIZE
         arr, mask = self._load_sprite("charizard.png", G)
         grid = self._build_grid(arr, mask)
 
-        # ── 1. Reveal the sprite ──────────────────────────────────────────
-        sprite_label = Tex(rf"${G} \times {G}$ pixel sprite", font_size=36).next_to(grid, UP, buff=0.3)
-        self.play(FadeIn(grid), FadeIn(sprite_label), run_time=0.8)
-        self.wait(0.6)
+        # ── 1. Reveal the greyscale pixel grid ───────────────────────────────
+        self.play(FadeIn(grid), run_time=0.8)
+        self.wait(0.5)
 
-        # ── 2. Shift left, introduce row structure ────────────────────────
-        self.play(grid.animate.shift(LEFT * 2.8), FadeOut(sprite_label), run_time=0.6)
+        # ── 2. Dimension arrows directly on the grid ──────────────────────────
+        left_val  = grid.get_left()[0]
+        right_val = grid.get_right()[0]
+        top_val   = grid.get_top()[1]
+        bot_val   = grid.get_bottom()[1]
+
+        top_arrow = DoubleArrow(
+            start=[left_val, top_val + 0.3, 0],
+            end=[right_val, top_val + 0.3, 0],
+            tip_length=0.15, buff=0.05, color=YELLOW_A,
+        )
+        width_label = MathTex(rf"{G}", font_size=26, color=YELLOW_A).next_to(top_arrow, UP, buff=0.1)
+
+        left_arrow = DoubleArrow(
+            start=[left_val - 0.3, top_val, 0],
+            end=[left_val - 0.3, bot_val, 0],
+            tip_length=0.15, buff=0.05, color=YELLOW_A,
+        )
+        height_label = MathTex(rf"{G}", font_size=26, color=YELLOW_A).next_to(left_arrow, LEFT, buff=0.1)
+
+        self.play(
+            Create(VGroup(top_arrow, left_arrow)),
+            FadeIn(VGroup(width_label, height_label)),
+            run_time=0.8,
+        )
+        self.wait(1.2)
+        self.play(FadeOut(VGroup(top_arrow, width_label, left_arrow, height_label)), run_time=0.5)
+        self.wait(0.3)
+
+        # ── 3. White shimmer wave (transient — grid returns to original) ──────
+        # Snapshot original fill colors BEFORE the wave so it restores them.
+        original_fills = [grid[k].get_fill_color() for k in range(G * G)]
+
+        def white_wave(mob, alpha):
+            pulse_width = 0.07
+            pulse_center = alpha * (1 + 2 * pulse_width) - pulse_width
+            for i in range(G):
+                for j in range(G):
+                    idx = i * G + j
+                    norm_dist = (i + j) / (2 * (G - 1))
+                    effect = np.exp(-((norm_dist - pulse_center) ** 2) / (2 * pulse_width ** 2))
+                    grid[idx].set_fill(
+                        interpolate_color(original_fills[idx], WHITE, effect), opacity=1
+                    )
+
+        self.play(UpdateFromAlphaFunc(grid, white_wave), run_time=2.0, rate_func=linear)
+        # Explicit restore in case the pulse hasn't fully cleared at alpha=1
+        for k in range(G * G):
+            grid[k].set_fill(original_fills[k], opacity=1)
+        self.wait(1.0)
+
+        # ── 4. Shift left and introduce row structure ──────────────────────────
+        self.play(grid.animate.shift(LEFT * 2.8), run_time=0.6)
 
         row_defs = [
             (0,     YELLOW, rf"row 1: $x_1, \ldots, x_{{{G}}}$"),
@@ -56,7 +107,7 @@ class DimensionHook(Scene):
 
         self.play(FadeOut(prev_rect), FadeOut(prev_label), FadeOut(dots), run_time=0.4)
 
-        # ── 3. Scan-line flatten → 1-D strip ──────────────────────────────
+        # ── 7. Scan-line flatten → 1-D strip (unchanged) ──────────────────────────
         self.play(grid.animate.move_to(UP * 1.0), run_time=0.5)
 
         STRIP_W, STRIP_H = 10.5, 0.45
@@ -68,10 +119,9 @@ class DimensionHook(Scene):
         g_left  = grid.get_left()[0]
         g_right = grid.get_right()[0]
 
-        # Label anchor: right of the sprite center, not at the screen edge
-        lbl_anchor = RIGHT * 1.55 + UP * 1.0
+        lbl_anchor = RIGHT * 3.2 + UP * 1.0
 
-        # ── 3a. Tracked pixel: upper-body of charizard (off-centre) ─────────
+        # Off-center tracked pixel: upper-body of charizard
         # 0-indexed (22,28) → 1-indexed row 23, col 29 → x_{56·22+29} = x_{1261}
         track_i, track_j = 22, 28
         track_sq  = grid[track_i * G + track_j]
@@ -93,11 +143,11 @@ class DimensionHook(Scene):
             run_time=0.4,
         )
 
-        # ── 3b. Neighbours of the orange pixel, same label format ─────────
-        # Pixels immediately to the right in scan order: (22,29) and (22,30)
         neighbor_seq = [
-            (22, 29, BLUE_C,  r"\text{pixel}(23,\,30) \;\longrightarrow\; x_{1262}"),
-            (22, 30, TEAL_C,  r"\text{pixel}(23,\,31) \;\longrightarrow\; x_{1263}"),
+            (22, 29, BLUE_C,    r"\text{pixel}(23,\,30) \;\longrightarrow\; x_{1262}"),
+            (22, 30, TEAL_C,    r"\text{pixel}(23,\,31) \;\longrightarrow\; x_{1263}"),
+            (22, 31, GREEN_C,   r"\text{pixel}(23,\,32) \;\longrightarrow\; x_{1264}"),
+            (22, 32, PURPLE_C,  r"\text{pixel}(23,\,33) \;\longrightarrow\; x_{1265}"),
         ]
         prev_phl  = None
         coord_lbl = None
@@ -118,9 +168,6 @@ class DimensionHook(Scene):
             prev_phl = phl
         self.play(FadeOut(prev_phl), FadeOut(coord_lbl), run_time=0.25)
 
-        # ── 3c. Scan line → full strip ────────────────────────────────────
-        # strip_border is built now but only added to the scene AFTER the scan
-        # so the empty rectangle outline never flashes before the content arrives.
         strip_border = Rectangle(
             width=STRIP_W, height=STRIP_H,
             fill_opacity=0, stroke_color=WHITE, stroke_width=1.5,
@@ -172,10 +219,9 @@ class DimensionHook(Scene):
             run_time=2.2,
             rate_func=linear,
         )
-        # Reveal the border only once the content is fully shown
         self.play(FadeOut(scan_line), FadeIn(strip_border), run_time=0.35)
 
-        # ── 3d. Endpoint labels + vector formula ──────────────────────────
+        # Endpoint labels + vector formula
         x1_lbl = MathTex(r"x_1", font_size=20, color=YELLOW)
         xn_lbl = MathTex(rf"x_{{{G * G}}}", font_size=20, color=YELLOW)
         x1_lbl.next_to(strip_border, UP, buff=0.07).align_to(strip_border, LEFT).shift(RIGHT * 0.08)
@@ -189,7 +235,7 @@ class DimensionHook(Scene):
         self.play(Write(vec_label), run_time=0.8)
         self.wait(0.8)
 
-        # ── 4. Abstract to R^3136 ─────────────────────────────────────────
+        # ── 8. Abstract to R^3136 (unchanged) ────────────────────────────────────
         r3136 = MathTex(r"x \in \mathbb{R}^{3136}", font_size=68).move_to(ORIGIN)
         self.play(
             FadeOut(grid),
@@ -200,10 +246,9 @@ class DimensionHook(Scene):
             Transform(vec_label, r3136),
             run_time=0.7,
         )
-        self.wait(1)
+        self.wait(1.0)
 
-        # ── 5. Smash-cut to a real image ──────────────────────────────────
-        # 4K: 3840 × 2160 × 3 = 24,883,200
+        # ── 9. Smash-cut to a real image (unchanged) ────────────────────────────
         real = MathTex(r"x \in \mathbb{R}^{24{,}883{,}200}", font_size=68).move_to(ORIGIN)
         footnote = Tex(
             r"(4K photo: $3840 \times 2160 \times 3$ channels)",
@@ -213,28 +258,26 @@ class DimensionHook(Scene):
         self.play(FadeIn(footnote), run_time=0.4)
         self.wait(1.5)
 
-        # ── 6. Thesis ─────────────────────────────────────────────────────
+        # ── 10. Thesis (unchanged) ──────────────────────────────────────────────────
         thesis = Text(
             "Dimension = number of independent values",
             weight=BOLD, font_size=38,
         ).move_to(UP * 2.3)
         self.play(FadeIn(thesis, shift=DOWN * 0.3), run_time=0.8)
-        self.wait(2)
+        self.wait(2.0)
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
     def _load_sprite(self, path, size):
         img = Image.open(path).convert("RGBA")
-        # Crop to content bounding box
         a = np.array(img)[:, :, 3]
         rmin, rmax = np.where(np.any(a > 0, axis=1))[0][[0, -1]]
         cmin, cmax = np.where(np.any(a > 0, axis=0))[0][[0, -1]]
         content = img.crop((cmin, rmin, cmax + 1, rmax + 1))
-        # Re-center in original 112×112 canvas → 2x NEAREST downscale stays integer-perfect
         canvas = Image.new("RGBA", (112, 112), (0, 0, 0, 0))
         cw, ch = content.size
         canvas.paste(content, ((112 - cw) // 2, (112 - ch) // 2))
-        small = np.array(canvas.resize((size, size), Image.NEAREST))  # (size, size, 4)
+        small = np.array(canvas.resize((size, size), Image.NEAREST))
         is_content = small[:, :, 3] > 0
         gray = (0.299 * small[:, :, 0] + 0.587 * small[:, :, 1] + 0.114 * small[:, :, 2]) / 255.0
         return gray, is_content
@@ -242,7 +285,6 @@ class DimensionHook(Scene):
     def _build_grid(self, arr, mask, seed=42):
         n, SQ = arr.shape[0], self.SQ
         rng = np.random.default_rng(seed)
-        # Background shades: very dark gray noise for transparent pixels
         bg_vals = [0.04, 0.06, 0.05, 0.07, 0.05, 0.08, 0.06, 0.05]
         grid = VGroup()
         for i in range(n):

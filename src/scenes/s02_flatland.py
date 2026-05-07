@@ -3,106 +3,149 @@ import numpy as np
 
 class FlatlandAnalogy(ThreeDScene):
     def construct(self):
-        # -- STYLING & SETUP --
+        # -- SETUP & VARIABLES --
         plane_color = BLUE_E
         sphere_color = TEAL
         intersection_color = YELLOW
+        sphere_radius = 2.0
         
-        # Angle the camera to see both the 3D space and the flat surface
-        self.set_camera_orientation(phi=70 * DEGREES, theta=-45 * DEGREES)
+        # A ValueTracker controls the Z-position of the sphere for the math to follow
+        sphere_z = ValueTracker(3.0)
 
-        # --- PART 1: THE FLATLAND PLANE ---
-        # A semi-transparent plane representing the 2D world
-        plane = Rectangle(width=10, height=10, color=plane_color, fill_opacity=0.3)
+        # The 2D grid representing Flatland
         grid = NumberPlane(
             x_range=[-5, 5, 1], y_range=[-5, 5, 1],
             background_line_style={"stroke_opacity": 0.2}
         )
-        plane_group = VGroup(plane, grid)
         
-        self.play(FadeIn(plane_group), run_time=1.5)
+        # --- PART 1: THE CREATURE'S PERSPECTIVE (2D ONLY) ---
+        # Look straight down at the XY plane. We do NOT add the sphere yet.
+        self.set_camera_orientation(phi=0 * DEGREES, theta=-90 * DEGREES)
+        self.play(FadeIn(grid))
         self.wait(1)
-
-        # --- PART 2: THE SPHERE PASSING THROUGH ---
-        sphere_radius = 2.0
-        sphere = Sphere(radius=sphere_radius, color=sphere_color, fill_opacity=0.15)
-        
-        # Start the sphere completely above the plane
-        start_z = 3.0
-        sphere.move_to(OUT * start_z)
-
-        self.play(FadeIn(sphere), run_time=1)
 
         # The intersection circle on the 2D plane
+        # It natively lies flat on the XY plane, so no rotations are needed!
         intersection = Circle(radius=0.001, color=intersection_color, stroke_width=4)
-        intersection.set_opacity(0) # Hide it initially
-        intersection.rotate(PI/2, axis=RIGHT) # Align flat with the 3D plane
         
-        # Dynamically calculate the cross-section radius
-        def update_intersection(circle):
-            z_pos = sphere.get_center()[2]
-            # r = sqrt(R^2 - z^2)
-            if abs(z_pos) < sphere_radius:
-                r = np.sqrt(sphere_radius**2 - z_pos**2)
-                circle.set_opacity(1)
-                # Re-draw the circle at the new radius
-                new_circle = Circle(radius=max(r, 0.001), color=intersection_color, stroke_width=4)
-                new_circle.rotate(PI/2, axis=RIGHT)
-                circle.become(new_circle)
+        def update_circle(c):
+            z = sphere_z.get_value()
+            # If the sphere is intersecting the plane (z=0)
+            if abs(z) < sphere_radius:
+                # Math: r = sqrt(R^2 - z^2)
+                r = np.sqrt(sphere_radius**2 - z**2)
+                c.set_opacity(1)
+                c.become(Circle(radius=max(r, 0.001), color=intersection_color, stroke_width=4))
             else:
-                circle.set_opacity(0)
+                c.set_opacity(0) # Hide it if the sphere isn't touching the plane
 
-        intersection.add_updater(update_intersection)
+        intersection.add_updater(update_circle)
         self.add(intersection)
 
-        # Animate the sphere moving straight down through the plane
-        self.play(
-            sphere.animate.move_to(IN * start_z),
-            run_time=6,
-            rate_func=linear # Linear speed makes the geometric growth/shrink naturally accurate
-        )
-        
-        intersection.clear_updaters()
+        # "First a point appears. Then a circle grows. Then it shrinks."
+        # Animate the unseen sphere moving from z=3 down to z=-3
+        self.play(sphere_z.animate.set_value(-3.0), run_time=5, rate_func=linear)
         self.wait(1)
 
-        # --- PART 3: THESIS TEXT ---
-        # Smoothly flatten the camera back to a 2D top-down view
-        self.move_camera(phi=0 * DEGREES, theta=-90 * DEGREES, run_time=1.5)
-        self.play(FadeOut(sphere, plane_group, intersection))
 
-        thesis_text = Text(
-            "Higher-dimensional objects can be\nstudied through lower-dimensional slices.",
-            weight=BOLD
-        ).scale(0.8)
+        # --- PART 2: THE 3D REVEAL ---
+        # Reset the Z position to the top
+        sphere_z.set_value(3.0)
         
-        self.play(Write(thesis_text), run_time=2)
-        self.wait(2)
+        # Move camera to show the 3D reality
+        self.move_camera(phi=70 * DEGREES, theta=-45 * DEGREES, run_time=2)
 
-        # Move text up to make room for the projection
-        self.play(thesis_text.animate.to_edge(UP).scale(0.7))
-
-        # --- PART 4: THE TESSERACT PROJECTION ---
-        # A clean, minimalist wireframe of a hypercube projection
-        outer_cube = Square(side_length=4, color=TEAL, stroke_width=2)
-        inner_cube = Square(side_length=2, color=BLUE, stroke_width=2)
+        # Now we bring in the actual 3D objects
+        plane = Rectangle(width=10, height=10, color=plane_color, fill_opacity=0.3)
+        sphere = Sphere(radius=sphere_radius, color=sphere_color, fill_opacity=0.15)
         
-        # Connect the corresponding vertices
-        connecting_lines = VGroup()
-        for v1, v2 in zip(outer_cube.get_vertices(), inner_cube.get_vertices()):
-            connecting_lines.add(Line(v1, v2, color=GRAY_B, stroke_opacity=0.5))
+        # Bind the sphere's actual position to the ValueTracker
+        sphere.add_updater(lambda m: m.move_to(OUT * sphere_z.get_value()))
+        
+        self.play(FadeIn(plane), FadeIn(sphere))
+        self.wait(1)
+
+        # Re-run the exact same mathematical drop, but now we see the cause
+        self.play(sphere_z.animate.set_value(-3.0), run_time=5, rate_func=linear)
+        self.wait(1)
+
+
+        # --- PART 3: THE TESSERACT PROJECTION ---
+        # Clear the stage
+        intersection.clear_updaters()
+        sphere.clear_updaters()
+        self.play(FadeOut(Group(grid, plane, sphere, intersection)))
+        
+        # Thesis Text
+        thesis_text = Paragraph(
+            "Higher-dimensional objects can be",
+            "studied through lower-dimensional slices.",
+            weight=BOLD, 
+            alignment="left"
+        ).scale(0.7)
+        
+        # Attach text to the camera so it ignores the 3D perspective
+        self.add_fixed_in_frame_mobjects(thesis_text)
+        thesis_text.to_edge(UP)
+        self.play(Write(thesis_text))
+
+        # Helper function to generate mathematically perfect 3D wireframe cubes
+        def create_wireframe_cube(size, color=WHITE):
+            vertices = []
+            # Generate the 8 corners
+            for x in [-1, 1]:
+                for y in [-1, 1]:
+                    for z in [-1, 1]:
+                        vertices.append(np.array([x, y, z]) * size / 2)
             
-        tesseract = VGroup(outer_cube, inner_cube, connecting_lines)
-        tesseract.move_to(DOWN * 0.5)
+            lines = VGroup()
+            # Connect the edges where exactly 1 coordinate changes
+            for i in range(8):
+                for j in range(i + 1, 8):
+                    diff = np.abs(vertices[i] - vertices[j])
+                    if np.isclose(np.sum(diff), size):
+                        lines.add(Line(vertices[i], vertices[j], color=color, stroke_width=2))
+            return lines, vertices
 
-        label = Text("Projection of a 4D cube into 2D", color=GRAY).scale(0.5).next_to(tesseract, DOWN, buff=0.5)
-
-        self.play(FadeIn(tesseract), Write(label))
+        # Use ValueTrackers for the sizes so the connecting lines update flawlessly
+        outer_size = ValueTracker(4)
+        inner_size = ValueTracker(1.5)
         
-        # Animate a simple perspective shift to imply 4D rotation without overcomplicating the scene
+        tesseract_group = VGroup()
+
+        def update_tesseract(mob):
+            mob.clear() # Redraw every frame for perfect connections
+            out_lines, out_v = create_wireframe_cube(outer_size.get_value(), color=TEAL)
+            in_lines, in_v = create_wireframe_cube(inner_size.get_value(), color=BLUE)
+            
+            # Connect corresponding vertices perfectly
+            conn_lines = VGroup(*[
+                Line(out_v[i], in_v[i], color=GRAY_B, stroke_opacity=0.5, stroke_width=2) 
+                for i in range(8)
+            ])
+            mob.add(out_lines, in_lines, conn_lines)
+
+        tesseract_group.add_updater(update_tesseract)
+        
+        # Move the tesseract down slightly to balance the text
+        tesseract_group.move_to(DOWN * 0.5) 
+        self.add(tesseract_group)
+        
+        # Fade in by animating from a size of 0
+        outer_size.set_value(0.01)
+        inner_size.set_value(0.01)
         self.play(
-            inner_cube.animate.scale(1.5),
-            outer_cube.animate.scale(0.7),
-            run_time=3,
-            rate_func=there_and_back
+            outer_size.animate.set_value(4),
+            inner_size.animate.set_value(1.5),
+            run_time=1.5
         )
-        self.wait(1.5)
+        self.wait(1)
+
+        # "Rotate" the tesseract by inverting the sizes
+        self.play(
+            outer_size.animate.set_value(1.5),
+            inner_size.animate.set_value(4),
+            run_time=3,
+            rate_func=there_and_back # Smoothly returns to original state
+        )
+        self.wait(2)
