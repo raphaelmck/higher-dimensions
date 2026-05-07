@@ -62,46 +62,24 @@ class DimensionHook(Scene):
         STRIP_W, STRIP_H = 10.5, 0.45
         strip_cx = 0.0
         strip_cy = grid.get_bottom()[1] - 0.35 - STRIP_H / 2
-        seg_w    = STRIP_W / G   # one row's slice of the strip
 
         g_top   = grid.get_top()[1]
         g_h     = grid.get_height()
         g_left  = grid.get_left()[0]
         g_right = grid.get_right()[0]
 
-        # ── 3a. Pixel-by-pixel intro (first 3 pixels) ────────────────────
-        pix_lbl_pos = grid.get_right() + RIGHT * 0.5 + UP * 0.85
-        prev_phl  = None
-        coord_lbl = None
-        for pi, pj, cs in [(0, 0, r"x_1"), (0, 1, r"x_2"), (0, 2, r"x_3")]:
-            sq  = grid[pi * G + pj]
-            phl = SurroundingRectangle(sq, color=WHITE, buff=0.0, stroke_width=3.5)
-            new_lbl = MathTex(cs, font_size=30, color=WHITE).move_to(pix_lbl_pos)
-            if prev_phl is None:
-                self.play(Create(phl), FadeIn(new_lbl), run_time=0.25)
-                coord_lbl = new_lbl
-            else:
-                self.play(
-                    ReplacementTransform(prev_phl, phl),
-                    Transform(coord_lbl, new_lbl),
-                    run_time=0.2,
-                )
-            self.wait(0.2)
-            prev_phl = phl
-        cdots = MathTex(r"\cdots", font_size=30, color=WHITE).move_to(pix_lbl_pos)
-        self.play(FadeOut(prev_phl), Transform(coord_lbl, cdots), run_time=0.2)
-        self.wait(0.3)
-        self.play(FadeOut(coord_lbl), run_time=0.2)
+        # Label anchor: right of the sprite center, not at the screen edge
+        lbl_anchor = RIGHT * 1.55 + UP * 1.0
 
-        # ── 3b. Tracked pixel: pixel(3,7) → x_119 ────────────────────────
-        # 0-indexed (i=2,j=6) → 1-indexed row 3, col 7 → x_{56·2+7} = x_119
-        track_i, track_j = 2, 6
+        # ── 3a. Tracked pixel: upper-body of charizard (off-centre) ─────────
+        # 0-indexed (22,28) → 1-indexed row 23, col 29 → x_{56·22+29} = x_{1261}
+        track_i, track_j = 22, 28
         track_sq  = grid[track_i * G + track_j]
         track_hl  = SurroundingRectangle(track_sq, color=ORANGE, buff=0.0, stroke_width=3.5)
         track_lbl = MathTex(
-            r"\text{pixel}(3,\,7) \;\longrightarrow\; x_{119}",
+            r"\text{pixel}(23,\,29) \;\longrightarrow\; x_{1261}",
             font_size=27, color=ORANGE,
-        ).next_to(grid, RIGHT, buff=0.45).shift(UP * 0.55)
+        ).move_to(lbl_anchor)
         formula_lbl = MathTex(
             r"x_{i,j} \;\mapsto\; x_{\,56(i-1)+j}",
             font_size=22, color=GRAY_B,
@@ -115,126 +93,89 @@ class DimensionHook(Scene):
             run_time=0.4,
         )
 
-        # Strip border appears before the row animations begin
+        # ── 3b. Neighbours of the orange pixel, same label format ─────────
+        # Pixels immediately to the right in scan order: (22,29) and (22,30)
+        neighbor_seq = [
+            (22, 29, BLUE_C,  r"\text{pixel}(23,\,30) \;\longrightarrow\; x_{1262}"),
+            (22, 30, TEAL_C,  r"\text{pixel}(23,\,31) \;\longrightarrow\; x_{1263}"),
+        ]
+        prev_phl  = None
+        coord_lbl = None
+        for pi, pj, color, tex in neighbor_seq:
+            sq  = grid[pi * G + pj]
+            phl = SurroundingRectangle(sq, color=color, buff=0.0, stroke_width=3.5)
+            new_lbl = MathTex(tex, font_size=27, color=color).move_to(lbl_anchor)
+            if prev_phl is None:
+                self.play(Create(phl), FadeIn(new_lbl), run_time=0.3)
+                coord_lbl = new_lbl
+            else:
+                self.play(
+                    ReplacementTransform(prev_phl, phl),
+                    Transform(coord_lbl, new_lbl),
+                    run_time=0.25,
+                )
+            self.wait(0.25)
+            prev_phl = phl
+        self.play(FadeOut(prev_phl), FadeOut(coord_lbl), run_time=0.25)
+
+        # ── 3c. Scan line → full strip ────────────────────────────────────
+        # strip_border is built now but only added to the scene AFTER the scan
+        # so the empty rectangle outline never flashes before the content arrives.
         strip_border = Rectangle(
             width=STRIP_W, height=STRIP_H,
             fill_opacity=0, stroke_color=WHITE, stroke_width=1.5,
         ).move_to([strip_cx, strip_cy, 0])
-        self.play(Create(strip_border), run_time=0.35)
 
-        # ── 3c. Row 1: highlight → collapses into strip ───────────────────
-        row0_group = VGroup(*[grid[j] for j in range(G)])
-        row0_hl    = SurroundingRectangle(row0_group, color=YELLOW, buff=0.01, stroke_width=2)
-        self.play(Create(row0_hl), run_time=0.4)
-        self.wait(0.2)
-
-        avg0     = float(arr[0].mean())
-        seg0_tgt = Rectangle(
-            width=seg_w * 0.95, height=STRIP_H * 0.88,
-            fill_color=rgb_to_hex((avg0, avg0, avg0)),
-            fill_opacity=1, stroke_width=0,
-        ).move_to([strip_cx - STRIP_W / 2 + 0.5 * seg_w, strip_cy, 0])
-
-        row_lbl_pos = grid.get_right() + RIGHT * 0.45
-        row0_side_lbl = Tex(
-            rf"row 1 $\to x_1, \ldots, x_{{{G}}}$",
-            font_size=24, color=YELLOW,
-        ).move_to(row_lbl_pos + UP * 0.4)
-
-        self.play(
-            Transform(row0_hl, seg0_tgt),
-            FadeIn(row0_side_lbl, shift=LEFT * 0.1),
-            run_time=0.6,
+        h_px = 80
+        flat_gray = arr.flatten()
+        strip_px  = np.repeat(
+            (flat_gray[np.newaxis, :] * 255).astype(np.uint8), h_px, axis=0,
         )
-        self.wait(0.35)
-
-        # ── 3d. Row 2: highlight → collapses into strip ───────────────────
-        row1_group = VGroup(*[grid[G + j] for j in range(G)])
-        row1_hl    = SurroundingRectangle(row1_group, color=GREEN, buff=0.01, stroke_width=2)
-        self.play(Create(row1_hl), run_time=0.4)
-        self.wait(0.2)
-
-        avg1     = float(arr[1].mean())
-        seg1_tgt = Rectangle(
-            width=seg_w * 0.95, height=STRIP_H * 0.88,
-            fill_color=rgb_to_hex((avg1, avg1, avg1)),
-            fill_opacity=1, stroke_width=0,
-        ).move_to([strip_cx - STRIP_W / 2 + 1.5 * seg_w, strip_cy, 0])
-
-        row1_side_lbl = Tex(
-            rf"row 2 $\to x_{{{G+1}}}, \ldots, x_{{{2*G}}}$",
-            font_size=24, color=GREEN,
-        ).move_to(row_lbl_pos + DOWN * 0.1)
-
-        self.play(
-            Transform(row1_hl, seg1_tgt),
-            FadeOut(row0_side_lbl),
-            FadeIn(row1_side_lbl, shift=LEFT * 0.1),
-            run_time=0.6,
-        )
-        self.wait(0.35)
-
-        # ── 3e. Rows 3–56: rapid scan reveals tail image ──────────────────
-        # Build an image only for rows 3-56 so the first two segments stay clean
-        h_px     = 80
-        flat_tail = arr[2:].flatten()                              # (54·G,)
-        tail_px   = np.repeat(
-            (flat_tail[np.newaxis, :] * 255).astype(np.uint8), h_px, axis=0,
-        )
-        tail_px = np.stack([tail_px] * 3, axis=-1)
-        tmp_tail = os.path.join(tempfile.gettempdir(), "hd_strip_tail.png")
-        Image.fromarray(tail_px).save(tmp_tail)
-
-        tail_w  = STRIP_W * (G - 2) / G
-        tail_cx = strip_cx - STRIP_W / 2 + 2 * seg_w + tail_w / 2
+        strip_px  = np.stack([strip_px] * 3, axis=-1)
+        tmp_path  = os.path.join(tempfile.gettempdir(), "hd_strip.png")
+        Image.fromarray(strip_px).save(tmp_path)
         strip_img = (
-            ImageMobject(tmp_tail)
-            .set_width(tail_w)
+            ImageMobject(tmp_path)
+            .set_width(STRIP_W)
             .set_height(STRIP_H * 0.88)
-            .move_to([tail_cx, strip_cy, 0])
+            .move_to([strip_cx, strip_cy, 0])
         )
-        strip_img.z_index = -1   # behind the two row-segment rectangles
+        strip_img.z_index = -1
 
-        cover_left  = strip_cx - STRIP_W / 2 + 2 * seg_w
-        cover_right = strip_cx + STRIP_W / 2
-        cover_w0    = tail_w
+        right_x = strip_cx + STRIP_W / 2
         cover = Rectangle(
-            width=cover_w0, height=STRIP_H + 0.06,
+            width=STRIP_W, height=STRIP_H + 0.06,
             fill_color=BLACK, fill_opacity=1, stroke_width=0,
-        ).move_to([cover_left + cover_w0 / 2, strip_cy, 0])
+        ).move_to([strip_cx, strip_cy, 0])
 
-        scan_y0   = g_top - (2.0 / G) * g_h
-        scan_line = Line([g_left, scan_y0, 0], [g_right, scan_y0, 0],
+        scan_line = Line([g_left, g_top, 0], [g_right, g_top, 0],
                          color=YELLOW, stroke_width=2.5)
 
         self.add(strip_img, cover, scan_line)
 
-        remaining_frac = (G - 2) / G
+        def update_scan(mob, alpha):
+            y = g_top - alpha * g_h
+            mob.put_start_and_end_on([g_left, y, 0], [g_right, y, 0])
 
-        def update_scan_rapid(mob, alpha):
-            frac = 2.0 / G + alpha * remaining_frac
-            mob.put_start_and_end_on([g_left, g_top - frac * g_h, 0],
-                                     [g_right, g_top - frac * g_h, 0])
-
-        def update_cover_rapid(mob, alpha):
-            w = max(0.001, cover_w0 * (1 - alpha))
+        def update_cover(mob, alpha):
+            w = max(0.001, STRIP_W * (1 - alpha))
             mob.become(
                 Rectangle(
                     width=w, height=STRIP_H + 0.06,
                     fill_color=BLACK, fill_opacity=1, stroke_width=0,
-                ).move_to([cover_right - w / 2, strip_cy, 0])
+                ).move_to([right_x - w / 2, strip_cy, 0])
             )
 
         self.play(
-            UpdateFromAlphaFunc(scan_line, update_scan_rapid),
-            UpdateFromAlphaFunc(cover, update_cover_rapid),
-            FadeOut(row1_side_lbl),
-            run_time=1.8,
+            UpdateFromAlphaFunc(scan_line, update_scan),
+            UpdateFromAlphaFunc(cover, update_cover),
+            run_time=2.2,
             rate_func=linear,
         )
-        self.play(FadeOut(scan_line), run_time=0.3)
+        # Reveal the border only once the content is fully shown
+        self.play(FadeOut(scan_line), FadeIn(strip_border), run_time=0.35)
 
-        # ── 3f. Endpoint labels + vector formula ──────────────────────────
+        # ── 3d. Endpoint labels + vector formula ──────────────────────────
         x1_lbl = MathTex(r"x_1", font_size=20, color=YELLOW)
         xn_lbl = MathTex(rf"x_{{{G * G}}}", font_size=20, color=YELLOW)
         x1_lbl.next_to(strip_border, UP, buff=0.07).align_to(strip_border, LEFT).shift(RIGHT * 0.08)
@@ -254,8 +195,6 @@ class DimensionHook(Scene):
             FadeOut(grid),
             FadeOut(strip_img),
             FadeOut(strip_border),
-            FadeOut(row0_hl),
-            FadeOut(row1_hl),
             FadeOut(x1_lbl),
             FadeOut(xn_lbl),
             Transform(vec_label, r3136),

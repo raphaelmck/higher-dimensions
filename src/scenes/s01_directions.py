@@ -13,51 +13,54 @@ class DimensionEscalation(ThreeDScene):
             x_length=8, y_length=6, z_length=6,
         )
 
+        # All coordinate labels are fixed to screen space so the 3D camera
+        # never rotates or clips them.  Start hidden; reveal with FadeIn.
+        def make_fixed(tex, fs=42):
+            m = MathTex(tex, font_size=fs).to_corner(UR, buff=0.55)
+            m.set_opacity(0)
+            self.add_fixed_in_frame_mobjects(m)
+            return m
+
+        label_1d = make_fixed(r"x \in \mathbb{R}")
+        label_2d = make_fixed(r"(x,\, y) \in \mathbb{R}^2")
+        label_3d = make_fixed(r"(x,\, y,\, z) \in \mathbb{R}^3")
+
         # ── 1D ────────────────────────────────────────────────────────────
-        # "a dimension is one independent direction of change"
         x_axis = axes.get_x_axis()
         dot = Dot(axes.c2p(0, 0, 0), color=accent, radius=0.1)
-        label_1d = MathTex(r"x \in \mathbb{R}").next_to(dot, UP, buff=0.4)
 
-        self.play(Create(x_axis), run_time=1.2)
-        self.play(FadeIn(dot, scale=0.5), Write(label_1d))
-        self.wait(0.3)
+        self.play(Create(x_axis), FadeIn(dot, scale=0.5), run_time=1.0)
+        self.wait(0.2)
 
-        # "On a line, you need one number" — dot slides back and forth, locked to x
+        # Dot slides back and forth — only one degree of freedom
         self.play(dot.animate.move_to(axes.c2p(3, 0, 0)), run_time=0.7, rate_func=smooth)
         self.play(dot.animate.move_to(axes.c2p(-3, 0, 0)), run_time=1.0, rate_func=smooth)
         self.play(dot.animate.move_to(axes.c2p(2, 0, 0)), run_time=0.6, rate_func=smooth)
-        self.wait(0.4)
+
+        self.play(FadeIn(label_1d), run_time=0.5)
+        self.wait(0.5)
 
         # ── 2D ────────────────────────────────────────────────────────────
-        # "In a plane, you need two"
         y_axis = axes.get_y_axis()
-        label_2d = MathTex(r"(x, y) \in \mathbb{R}^2").next_to(dot, UR, buff=0.2)
-
-        self.play(Create(y_axis), run_time=0.9)
+        # Fade the 1D label out as the new axis appears
+        self.play(Create(y_axis), FadeOut(label_1d), run_time=0.9)
         self.wait(0.2)
 
-        # Show the new vertical freedom: first move along y only, then x only,
-        # then a diagonal — making "two independent directions" visible
+        # Show the new vertical freedom: y-move, x-move, diagonal
         self.play(dot.animate.move_to(axes.c2p(2, 2.5, 0)), run_time=0.6, rate_func=smooth)
         self.play(dot.animate.move_to(axes.c2p(-2, 2.5, 0)), run_time=0.7, rate_func=smooth)
         self.play(dot.animate.move_to(axes.c2p(-2, -2, 0)), run_time=0.6, rate_func=smooth)
         self.play(dot.animate.move_to(axes.c2p(1.5, 1.5, 0)), run_time=0.7, rate_func=smooth)
 
-        self.play(TransformMatchingTex(label_1d, label_2d), run_time=0.6)
+        self.play(FadeIn(label_2d), run_time=0.5)
         self.wait(0.5)
 
         # ── 3D ────────────────────────────────────────────────────────────
-        # "In space, you need three"
         dot_3d = Sphere(radius=0.12, resolution=(16, 16)).set_color(accent)
         dot_3d.move_to(axes.c2p(1.5, 1.5, 0))
 
-        label_3d = MathTex(r"(x, y, z) \in \mathbb{R}^3")
-        label_3d.to_corner(UR, buff=1)
-        self.add_fixed_in_frame_mobjects(label_3d)
-        label_3d.set_opacity(0)
-
-        # Camera opens into 3D while z-axis grows
+        # Label out before camera rotates — avoids label fighting the 3D view
+        self.play(FadeOut(label_2d), run_time=0.4)
         self.move_camera(phi=70 * DEGREES, theta=-50 * DEGREES, run_time=1.8)
         self.play(
             ReplacementTransform(dot, dot_3d),
@@ -65,21 +68,20 @@ class DimensionEscalation(ThreeDScene):
             run_time=1.0,
         )
 
-        # "need three" — move through 3D space, showing the new z freedom
+        # Move through 3D space to show the z freedom
         self.play(dot_3d.animate.move_to(axes.c2p(1.5, 1.5, 2.5)), run_time=0.7, rate_func=smooth)
         self.play(dot_3d.animate.move_to(axes.c2p(-2, 1, 2.5)), run_time=0.7, rate_func=smooth)
         self.play(dot_3d.animate.move_to(axes.c2p(-2, -1.5, -1.5)), run_time=0.8, rate_func=smooth)
         self.play(dot_3d.animate.move_to(axes.c2p(2, 2, 2)), run_time=0.7, rate_func=smooth)
 
-        # Slow orbit so the viewer can feel the 3D depth
+        # Label in, then slow orbit so the viewer can feel the depth
+        self.play(FadeIn(label_3d), run_time=0.6)
         self.begin_ambient_camera_rotation(rate=0.25)
-        label_3d.set_opacity(1)
-        self.play(TransformMatchingTex(label_2d, label_3d), run_time=0.8)
         self.wait(2.0)
         self.stop_ambient_camera_rotation()
 
         # ── n-D ────────────────────────────────────────────────────────────
-        # "the idea does not stop there … lives in an n-dimensional space"
+        self.play(FadeOut(label_3d), run_time=0.5)
         self.move_camera(phi=0 * DEGREES, theta=-90 * DEGREES, run_time=1.5)
 
         label_nd = MathTex(r"(x_1, x_2, \dots, x_n) \in \mathbb{R}^n").scale(1.3)
@@ -88,12 +90,11 @@ class DimensionEscalation(ThreeDScene):
 
         self.play(
             FadeOut(axes, dot_3d),
-            ReplacementTransform(label_3d, label_nd),
-            run_time=1.5,
+            FadeIn(label_nd),
+            run_time=1.2,
         )
 
         # ── Sliders ───────────────────────────────────────────────────────
-        # "imagination gets stuck at three. The math does not."
         sliders = VGroup()
         slider_labels = ["x_1", "x_2", "x_3", r"\vdots", "x_n"]
 
