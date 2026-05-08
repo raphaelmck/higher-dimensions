@@ -46,7 +46,7 @@ class IntrinsicDimension(ThreeDScene):
             color=highlight_color,
             stroke_width=4,
         )
-        marker = Dot3D(point=point_coords, radius=0.05, color=highlight_color)
+        marker = Dot3D(point=point_coords, radius=0.02, color=highlight_color)
 
         self.play(FadeIn(sphere), run_time=1.0)
         self.play(Create(meridian), Create(parallel), FadeIn(marker), run_time=1.5)
@@ -96,10 +96,16 @@ class IntrinsicDimension(ThreeDScene):
             -np.sin(lat_u) * np.sin(lon_v),
             np.cos(lat_u),
         ])
-        ax_len = 0.18
+        ax_len = 0.07
 
-        lon_axis = Arrow3D(start=point_coords, end=point_coords + e_lon * ax_len, color=RED_C)
-        lat_axis = Arrow3D(start=point_coords, end=point_coords + e_lat * ax_len, color=GREEN_C)
+        lon_axis = Arrow3D(
+            start=point_coords, end=point_coords + e_lon * ax_len,
+            color=RED_C, thickness=0.008, height=0.03, base_radius=0.015,
+        )
+        lat_axis = Arrow3D(
+            start=point_coords, end=point_coords + e_lat * ax_len,
+            color=GREEN_C, thickness=0.008, height=0.03, base_radius=0.015,
+        )
 
         # "locally flat" label in screen space
         flat_label = Text("locally flat", font_size=28, color=WHITE).to_edge(DOWN, buff=0.5)

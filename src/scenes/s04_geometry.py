@@ -5,7 +5,7 @@ class DataGeometry(Scene):
     def construct(self):
         # -- STYLING --
         accent_color = TEAL_C
-        secondary_color = YELLOW_M
+        secondary_color = YELLOW_D
         text_color = WHITE
         
         # --- PART 1: THE MONTAGE (REAL WORLD TO VECTORS) ---
@@ -151,8 +151,7 @@ class DataGeometry(Scene):
         thesis = Text(
             "Vectors let us do geometry\nwith complicated objects.",
             font_size=36,
-            weight=BOLD,
-            text_alignment=CENTER
+            weight=BOLD
         )
         self.play(Write(thesis), run_time=2)
         self.wait(3)
