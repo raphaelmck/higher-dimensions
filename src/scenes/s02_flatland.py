@@ -57,26 +57,6 @@ class FlatlandAnalogy(ThreeDScene):
         intersection.add_updater(update_circle)
         self.add(intersection)
 
-        # Phase label tracks what the Flatland creature observes.
-        # Camera is stationary here so no need for fixed_in_frame.
-        def make_phase_label():
-            z = sphere_z.get_value()
-            R = sphere_radius
-            if z >= R:
-                msg, color = "nothing", GRAY_C
-            elif z > R * 0.8:
-                msg, color = "a point appears…", WHITE
-            elif z >= 0:
-                msg, color = "a circle grows", WHITE
-            elif z > -R * 0.8:
-                msg, color = "circle shrinks", WHITE
-            else:
-                msg, color = "nothing", GRAY_C
-            return Text(msg, font_size=30, color=color).to_corner(DL, buff=0.5)
-
-        phase_label = always_redraw(make_phase_label)
-        self.add(phase_label)
-
         # Drop in segments so the narrative beats land cleanly
         self.play(sphere_z.animate.set_value(sphere_radius * 0.8), run_time=0.8, rate_func=linear)
         self.play(sphere_z.animate.set_value(0.0), run_time=2.0, rate_func=linear)
@@ -91,7 +71,6 @@ class FlatlandAnalogy(ThreeDScene):
         self.play(sphere_z.animate.set_value(-sphere_radius * 0.8), run_time=2.0, rate_func=linear)
         self.play(sphere_z.animate.set_value(-3.0), run_time=0.8, rate_func=linear)
         self.wait(0.5)
-        self.remove(phase_label)
 
         # ── BEAT 3: 3D Reveal ─────────────────────────────────────────────
         # Reset and let the camera rotate to show the hidden cause.
