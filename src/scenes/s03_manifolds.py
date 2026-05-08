@@ -20,6 +20,14 @@ class IntrinsicDimension(ThreeDScene):
 
         point_coords = sp(lat_u, lon_v)
 
+        # Tangent basis — computed once, used for both the flat grid and axes
+        e_lon = np.array([-np.sin(lon_v), np.cos(lon_v), 0.0])
+        e_lat = np.array([
+            -np.sin(lat_u) * np.cos(lon_v),
+            -np.sin(lat_u) * np.sin(lon_v),
+            np.cos(lat_u),
+        ])
+
         # ── SPHERE ────────────────────────────────────────────────────────
         self.set_camera_orientation(phi=65 * DEGREES, theta=-45 * DEGREES)
 
@@ -52,9 +60,12 @@ class IntrinsicDimension(ThreeDScene):
         self.play(Create(meridian), Create(parallel), FadeIn(marker), run_time=1.5)
         self.wait(0.8)
 
-        # ── TEXT: EMBEDDING VS INTRINSIC ──────────────────────────────────
-        # Set opacity 0 before adding as fixed frame — FadeIn on fixed-frame
-        # mobjects is unreliable; animating opacity is the safe pattern.
+        # ── LABELS ────────────────────────────────────────────────────────
+        coord_label = MathTex(r"(\theta,\, \phi)", font_size=40).to_corner(UR, buff=0.55)
+        coord_label.set_opacity(0)
+        self.add_fixed_in_frame_mobjects(coord_label)
+        self.play(coord_label.animate.set_opacity(1), run_time=0.5)
+
         embed_text = Text(
             "Embedding dimension: where it lives  (3D)", color=WHITE,
         ).scale(0.55)
@@ -71,14 +82,34 @@ class IntrinsicDimension(ThreeDScene):
         self.wait(0.8)
         self.play(intrinsic_text.animate.set_opacity(1), run_time=0.6)
         self.wait(1.5)
-        self.play(text_group.animate.set_opacity(0), run_time=0.5)
+        self.play(
+            text_group.animate.set_opacity(0),
+            coord_label.animate.set_opacity(0),
+            run_time=0.5,
+        )
+
+        # ── FLAT LOCAL GRID ────────────────────────────────────────────────
+        # Straight lines in the tangent plane — flat by construction.
+        # These replace the curved meridian/parallel once we zoom in,
+        # so the viewer sees no curvature at all in the local view.
+        grid_extent = 0.10
+        n_lines = 7
+        local_grid = VGroup()
+        for t in np.linspace(-grid_extent, grid_extent, n_lines):
+            local_grid.add(Line(
+                point_coords + t * e_lat - grid_extent * e_lon,
+                point_coords + t * e_lat + grid_extent * e_lon,
+                color=grid_color, stroke_width=0.8, stroke_opacity=0.7,
+            ))
+            local_grid.add(Line(
+                point_coords + t * e_lon - grid_extent * e_lat,
+                point_coords + t * e_lon + grid_extent * e_lat,
+                color=grid_color, stroke_width=0.8, stroke_opacity=0.7,
+            ))
 
         # ── ZOOM IN: LOCALLY FLAT ──────────────────────────────────────────
-        # Camera moves along the outward normal at point_coords so we look
-        # straight down onto the surface patch — no object scaling, so the
-        # marker stays a point and nothing looks distorted.
-        outward_phi = PI / 2 - lat_u   # 60° — matches outward normal polar angle
-        outward_theta = lon_v           # 45° — matches outward normal azimuth
+        outward_phi = PI / 2 - lat_u   # 60° — outward normal polar angle
+        outward_theta = lon_v           # 45° — outward normal azimuth
 
         self.move_camera(
             phi=outward_phi,
@@ -87,27 +118,25 @@ class IntrinsicDimension(ThreeDScene):
             zoom=14,
             run_time=3.0, rate_func=smooth,
         )
+
+        # Swap curved lines for the flat tangent-plane grid
+        self.play(
+            FadeOut(meridian, parallel),
+            FadeIn(local_grid),
+            run_time=0.6,
+        )
         self.wait(0.3)
 
-        # Local tangent basis (unit vectors in the sphere surface at this point)
-        e_lon = np.array([-np.sin(lon_v), np.cos(lon_v), 0.0])
-        e_lat = np.array([
-            -np.sin(lat_u) * np.cos(lon_v),
-            -np.sin(lat_u) * np.sin(lon_v),
-            np.cos(lat_u),
-        ])
         ax_len = 0.07
-
         lon_axis = Arrow3D(
             start=point_coords, end=point_coords + e_lon * ax_len,
-            color=RED_C, thickness=0.008, height=0.03, base_radius=0.015,
+            color=RED_C, thickness=0.003, height=0.015, base_radius=0.006,
         )
         lat_axis = Arrow3D(
             start=point_coords, end=point_coords + e_lat * ax_len,
-            color=GREEN_C, thickness=0.008, height=0.03, base_radius=0.015,
+            color=GREEN_C, thickness=0.003, height=0.015, base_radius=0.006,
         )
 
-        # "locally flat" label in screen space
         flat_label = Text("locally flat", font_size=28, color=WHITE).to_edge(DOWN, buff=0.5)
         flat_label.set_opacity(0)
         self.add_fixed_in_frame_mobjects(flat_label)
@@ -119,17 +148,20 @@ class IntrinsicDimension(ThreeDScene):
         )
         self.wait(0.4)
 
-        # Point moves freely on the surface — at this scale the curvature is
-        # invisible, so the movement looks exactly like a flat 2D plane.
-        self.play(marker.animate.move_to(sp(lat_u + 0.10, lon_v)),          run_time=0.7, rate_func=smooth)
-        self.play(marker.animate.move_to(sp(lat_u + 0.10, lon_v + 0.12)),   run_time=0.8, rate_func=smooth)
-        self.play(marker.animate.move_to(sp(lat_u,        lon_v + 0.12)),   run_time=0.7, rate_func=smooth)
-        self.play(marker.animate.move_to(sp(lat_u - 0.08, lon_v + 0.05)),   run_time=0.7, rate_func=smooth)
+        # Point moves freely — the flat grid makes it obvious this is a 2D plane
+        self.play(marker.animate.move_to(sp(lat_u + 0.07, lon_v)),          run_time=0.7, rate_func=smooth)
+        self.play(marker.animate.move_to(sp(lat_u + 0.07, lon_v + 0.09)),   run_time=0.8, rate_func=smooth)
+        self.play(marker.animate.move_to(sp(lat_u,        lon_v + 0.09)),   run_time=0.7, rate_func=smooth)
+        self.play(marker.animate.move_to(sp(lat_u - 0.06, lon_v + 0.04)),   run_time=0.7, rate_func=smooth)
         self.play(marker.animate.move_to(sp(lat_u,        lon_v)),          run_time=0.8, rate_func=smooth)
         self.wait(0.6)
 
         # ── PULL BACK ─────────────────────────────────────────────────────
-        self.play(FadeOut(lon_axis, lat_axis), flat_label.animate.set_opacity(0), run_time=0.5)
+        self.play(
+            FadeOut(lon_axis, lat_axis, local_grid),
+            flat_label.animate.set_opacity(0),
+            run_time=0.5,
+        )
         self.move_camera(
             phi=65 * DEGREES,
             theta=-45 * DEGREES,
