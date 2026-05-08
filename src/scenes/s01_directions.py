@@ -74,52 +74,58 @@ class DimensionEscalation(ThreeDScene):
         self.play(dot_3d.animate.move_to(axes.c2p(-2, -1.5, -1.5)), run_time=0.8, rate_func=smooth)
         self.play(dot_3d.animate.move_to(axes.c2p(2, 2, 2)), run_time=0.7, rate_func=smooth)
 
-        # Label in, then slow orbit so the viewer can feel the depth
+        # Label in, then a brief orbit so the viewer feels the depth
         self.play(FadeIn(label_3d), run_time=0.6)
-        self.begin_ambient_camera_rotation(rate=0.25)
-        self.wait(2.0)
+        self.begin_ambient_camera_rotation(rate=0.2)
+        self.wait(1.5)
         self.stop_ambient_camera_rotation()
 
         # ── n-D ────────────────────────────────────────────────────────────
-        self.play(FadeOut(label_3d), run_time=0.5)
-        self.move_camera(phi=0 * DEGREES, theta=-90 * DEGREES, run_time=1.5)
-
-        label_nd = MathTex(r"(x_1, x_2, \dots, x_n) \in \mathbb{R}^n").scale(1.3)
-        label_nd.move_to(UP * 2)
+        # The 3D world fades while we stay in the 3D perspective — the axes
+        # don't reset to flat, they simply dissolve, implying we've stepped
+        # beyond what can be drawn.  The label upgrades in the same motion.
+        label_nd = MathTex(r"(x_1,\, x_2,\, \dots,\, x_n) \in \mathbb{R}^n", font_size=48)
+        label_nd.to_edge(UP, buff=0.6)
         self.add_fixed_in_frame_mobjects(label_nd)
+        label_nd.set_opacity(0)
 
         self.play(
-            FadeOut(axes, dot_3d),
-            FadeIn(label_nd),
-            run_time=1.2,
+            FadeOut(axes, dot_3d, label_3d),
+            label_nd.animate.set_opacity(1),
+            run_time=1.4,
         )
+        self.wait(0.3)
 
         # ── Sliders ───────────────────────────────────────────────────────
+        # More rows than fit on screen — x_n disappears off the bottom edge,
+        # making it visceral that there is no fixed upper limit.
+        slider_labels = ["x_1", "x_2", "x_3", "x_4", "x_5", r"\vdots", "x_n"]
         sliders = VGroup()
-        slider_labels = ["x_1", "x_2", "x_3", r"\vdots", "x_n"]
 
         for text in slider_labels:
             group = VGroup()
-            lbl = MathTex(text).scale(0.8)
+            lbl = MathTex(text, font_size=36)
             if text == r"\vdots":
                 group.add(lbl)
             else:
-                track = Line(LEFT * 2, RIGHT * 2, color=GRAY_D, stroke_width=2)
+                track = Line(LEFT * 2.8, RIGHT * 2.8, color=GRAY_D, stroke_width=2)
                 prop = np.random.uniform(0.15, 0.85)
                 knob = Dot(track.point_from_proportion(prop), color=accent, radius=0.08)
-                lbl.next_to(track, LEFT, buff=0.5)
+                lbl.next_to(track, LEFT, buff=0.4)
                 group.add(lbl, track, knob)
             sliders.add(group)
 
-        sliders.arrange(DOWN, buff=0.4).next_to(label_nd, DOWN, buff=0.8)
+        sliders.arrange(DOWN, buff=0.38)
+        sliders.next_to(label_nd, DOWN, buff=0.5)
         self.add_fixed_in_frame_mobjects(sliders)
 
         self.play(
-            LaggedStart(*[FadeIn(s, shift=UP * 0.2) for s in sliders], lag_ratio=0.15),
-            run_time=1.8,
+            LaggedStart(*[FadeIn(s, shift=UP * 0.15) for s in sliders], lag_ratio=0.12),
+            run_time=1.6,
         )
 
-        # Each knob moves independently — illustrating independent dimensions
+        # Each knob moves to a new position and stays there — n independent
+        # coordinates, each free to be anything, none affecting the others.
         knob_anims = []
         for group in sliders:
             if len(group) > 1:
@@ -127,5 +133,5 @@ class DimensionEscalation(ThreeDScene):
                 knob_anims.append(
                     knob.animate.move_to(track.point_from_proportion(np.random.uniform(0.1, 0.9)))
                 )
-        self.play(*knob_anims, run_time=2.0, rate_func=there_and_back)
+        self.play(*knob_anims, run_time=1.4, rate_func=smooth)
         self.wait(2)

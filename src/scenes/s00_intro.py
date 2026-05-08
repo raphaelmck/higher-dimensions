@@ -47,11 +47,10 @@ class DimensionHook(Scene):
         self.play(FadeOut(VGroup(top_arrow, width_label, left_arrow, height_label)), run_time=0.5)
         self.wait(0.3)
 
-        # ── 3. White shimmer wave (transient — grid returns to original) ──────
-        # Snapshot original fill colors BEFORE the wave so it restores them.
-        original_fills = [grid[k].get_fill_color() for k in range(G * G)]
-
-        def white_wave(mob, alpha):
+        # ── 3. White shimmer wave on the gridlines (strokes only) ────────────
+        # Pulse brightens stroke color GRAY→WHITE and thickens it temporarily;
+        # pixel fill colors are never touched.
+        def white_wave(_, alpha):
             pulse_width = 0.07
             pulse_center = alpha * (1 + 2 * pulse_width) - pulse_width
             for i in range(G):
@@ -59,14 +58,14 @@ class DimensionHook(Scene):
                     idx = i * G + j
                     norm_dist = (i + j) / (2 * (G - 1))
                     effect = np.exp(-((norm_dist - pulse_center) ** 2) / (2 * pulse_width ** 2))
-                    grid[idx].set_fill(
-                        interpolate_color(original_fills[idx], WHITE, effect), opacity=1
+                    grid[idx].set_stroke(
+                        color=interpolate_color(GRAY, WHITE, effect),
+                        width=0.2 + effect * 1.5,
                     )
 
         self.play(UpdateFromAlphaFunc(grid, white_wave), run_time=2.0, rate_func=linear)
-        # Explicit restore in case the pulse hasn't fully cleared at alpha=1
         for k in range(G * G):
-            grid[k].set_fill(original_fills[k], opacity=1)
+            grid[k].set_stroke(color=GRAY, width=0.2)
         self.wait(1.0)
 
         # ── 4. Shift left and introduce row structure ──────────────────────────
@@ -107,19 +106,23 @@ class DimensionHook(Scene):
 
         self.play(FadeOut(prev_rect), FadeOut(prev_label), FadeOut(dots), run_time=0.4)
 
-        # ── 7. Scan-line flatten → 1-D strip (unchanged) ──────────────────────────
+        # ── 7. Pixel annotation then scan ─────────────────────────────────────
+        # First move to centre so we can capture scan geometry, then shift left
+        # so the labels have room on the right, then slide back for the scan.
         self.play(grid.animate.move_to(UP * 1.0), run_time=0.5)
 
         STRIP_W, STRIP_H = 10.5, 0.45
         strip_cx = 0.0
+        # Capture scan geometry while grid is centred (x-coords matter for scan line)
         strip_cy = grid.get_bottom()[1] - 0.35 - STRIP_H / 2
-
         g_top   = grid.get_top()[1]
         g_h     = grid.get_height()
         g_left  = grid.get_left()[0]
         g_right = grid.get_right()[0]
 
-        lbl_anchor = RIGHT * 3.2 + UP * 1.0
+        # Shift left so labels on the right are clear of the grid
+        self.play(grid.animate.shift(LEFT * 1.8), run_time=0.4)
+        lbl_anchor = RIGHT * 4.0 + UP * 1.0
 
         # Off-center tracked pixel: upper-body of charizard
         # 0-indexed (22,28) → 1-indexed row 23, col 29 → x_{56·22+29} = x_{1261}
@@ -167,6 +170,9 @@ class DimensionHook(Scene):
             self.wait(0.25)
             prev_phl = phl
         self.play(FadeOut(prev_phl), FadeOut(coord_lbl), run_time=0.25)
+
+        # Slide grid back to centre before the scan
+        self.play(grid.animate.move_to(UP * 1.0), run_time=0.4)
 
         strip_border = Rectangle(
             width=STRIP_W, height=STRIP_H,

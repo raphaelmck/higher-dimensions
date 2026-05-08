@@ -114,7 +114,6 @@ class FlatlandAnalogy(ThreeDScene):
         tesseract_group = VGroup()
 
         def update_tesseract(mob):
-            mob.clear() # Redraw every frame for perfect connections
             out_lines, out_v = create_wireframe_cube(outer_size.get_value(), color=TEAL)
             in_lines, in_v = create_wireframe_cube(inner_size.get_value(), color=BLUE)
             
@@ -123,13 +122,21 @@ class FlatlandAnalogy(ThreeDScene):
                 Line(out_v[i], in_v[i], color=GRAY_B, stroke_opacity=0.5, stroke_width=2) 
                 for i in range(8)
             ])
-            mob.add(out_lines, in_lines, conn_lines)
+            
+            # 1. Group the new elements
+            new_tesseract = VGroup(out_lines, in_lines, conn_lines)
+            
+            # 2. Re-apply the position shift
+            new_tesseract.move_to(DOWN * 0.5)
+            
+            # 3. Tell the original mob to become this new structure
+            mob.become(new_tesseract)
 
         tesseract_group.add_updater(update_tesseract)
+        self.add(tesseract_group)
         
         # Move the tesseract down slightly to balance the text
         tesseract_group.move_to(DOWN * 0.5) 
-        self.add(tesseract_group)
         
         # Fade in by animating from a size of 0
         outer_size.set_value(0.01)
