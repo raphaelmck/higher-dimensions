@@ -1,134 +1,160 @@
 from manim import *
 import numpy as np
 
-class HighDimensionalStrangeness(Scene):
+class The90DegreeMachine(Scene):
     def construct(self):
         # -- STYLING --
         accent_color = TEAL_C
-        secondary_color = YELLOW_D
+        reference_color = BLUE_D
+        highlight_color = YELLOW_D
+        dot_color = WHITE
         
-        # --- PART 1: THE 2D CHAOS ---
+        # --- BEAT 1: 2D INTUITION ---
+        # "If I pick two random directions, what angle should I expect?"
         plane = NumberPlane(
             x_range=[-3, 3, 1], y_range=[-3, 3, 1],
             background_line_style={"stroke_opacity": 0.2}
         ).scale(0.8)
         
-        self.play(FadeIn(plane))
+        # Fixed Reference Vector (pointing straight right)
+        ref_arrow = Arrow(ORIGIN, RIGHT * 2.5, buff=0, color=reference_color, stroke_width=6)
+        ref_label = MathTex("v_{ref}").next_to(ref_arrow.get_end(), DOWN)
         
-        # Generate random arrows to show wild variance in 2D
-        arrows = VGroup()
-        for _ in range(8):
-            angle = np.random.uniform(0, 2 * PI)
-            length = np.random.uniform(1.5, 2.5)
-            arrow = Arrow(ORIGIN, [length * np.cos(angle), length * np.sin(angle), 0], buff=0, color=secondary_color)
-            arrows.add(arrow)
+        self.play(FadeIn(plane), GrowArrow(ref_arrow), FadeIn(ref_label))
+        self.wait(0.5)
+        
+        # Generate random arrows and angle arcs
+        random_arrows = VGroup()
+        angle_arcs = VGroup()
+        angle_labels = VGroup()
+        
+        # 4 distinct 2D examples
+        angles = [PI/6, 2*PI/3, -PI/4, 5*PI/6] 
+        for angle in angles:
+            arrow = Arrow(ORIGIN, [2.5*np.cos(angle), 2.5*np.sin(angle), 0], buff=0, color=accent_color)
+            arc = Angle(ref_arrow, arrow, radius=0.8, color=highlight_color)
+            deg_val = int(abs(angle * 180 / PI))
+            label = Text(f"{deg_val}°", font_size=20, color=highlight_color).next_to(arc, direction=UP if angle>0 else DOWN, buff=0.1)
             
-        self.play(LaggedStart(*[GrowArrow(a) for a in arrows], lag_ratio=0.1), run_time=1.5)
+            random_arrows.add(arrow)
+            angle_arcs.add(arc)
+            angle_labels.add(label)
+            
+        # Flash them one by one to show the "wild variance"
+        for i in range(4):
+            self.play(GrowArrow(random_arrows[i]), Create(angle_arcs[i]), FadeIn(angle_labels[i]), run_time=0.8)
+            self.wait(0.2)
+            if i < 3: # Keep the last one for the transition
+                self.play(FadeOut(random_arrows[i], angle_arcs[i], angle_labels[i]), run_time=0.3)
+                
         self.wait(1)
         
-        # Highlight two specific arrows and their angle
-        v1 = arrows[0]
-        v2 = arrows[3]
-        angle_arc = Angle(v1, v2, radius=0.6, color=WHITE)
+        # --- BEAT 2: THE ANGLE GAUGE ---
+        self.play(FadeOut(plane, random_arrows[-1], angle_arcs[-1], angle_labels[-1], ref_arrow, ref_label))
         
-        self.play(
-            *[FadeOut(a) for a in arrows if a not in [v1, v2]],
-            Create(angle_arc)
-        )
-        self.wait(1)
+        # Build the semicircular gauge
+        gauge_radius = 3.5
+        gauge_arc = Arc(radius=gauge_radius, start_angle=0, angle=PI, color=GRAY_B, stroke_width=4)
+        gauge_center = DOWN * 1.5
+        gauge_arc.move_to(gauge_center + UP * gauge_radius/2) # align properly
         
-        # --- PART 2: THE MATH FORMULA ---
-        self.play(FadeOut(plane, v1, v2, angle_arc))
+        ticks = VGroup()
+        tick_labels = VGroup()
+        for deg in [0, 45, 90, 135, 180]:
+            rad = deg * PI / 180
+            # Calculate tick positions
+            start = gauge_center + np.array([np.cos(rad), np.sin(rad), 0]) * (gauge_radius - 0.2)
+            end = gauge_center + np.array([np.cos(rad), np.sin(rad), 0]) * (gauge_radius + 0.2)
+            ticks.add(Line(start, end, color=WHITE))
+            
+            # Add text labels
+            label = Text(f"{deg}°", font_size=24)
+            label_pos = gauge_center + np.array([np.cos(rad), np.sin(rad), 0]) * (gauge_radius + 0.6)
+            label.move_to(label_pos)
+            tick_labels.add(label)
+            
+        # Highlight the 90 degree mark to subconsciously prime the viewer
+        ticks[2].set_color(highlight_color).set_stroke(width=6)
+        tick_labels[2].set_color(highlight_color).set_weight(BOLD)
         
-        formula = MathTex(
-            r"\cos\theta = \frac{x \cdot y}{\|x\| \|y\|}"
-        ).scale(1.5)
+        gauge = VGroup(gauge_arc, ticks, tick_labels)
+        self.play(Create(gauge), run_time=1.5)
         
-        self.play(Write(formula))
-        self.wait(1)
-        self.play(formula.animate.scale(0.6).to_corner(UR))
+        # --- BEAT 3: THE DIMENSION SLIDER & COLLAPSE ---
+        n_tracker = ValueTracker(2)
         
-        # --- PART 3: THE DIMENSION SLIDER & HISTOGRAM ---
-        # Setup the axes for the cosine distribution (-1 to 1)
-        axes = Axes(
-            x_range=[-1, 1, 0.5], 
-            y_range=[0, 15, 5], 
-            x_length=8, 
-            y_length=5,
-            axis_config={"include_numbers": True}
-        ).shift(DOWN * 0.5)
-        
-        x_label = axes.get_x_axis_label(r"\cos\theta")
-        self.play(Create(axes), FadeIn(x_label))
-        
-        # ValueTracker for dimension n (start at n=3 for a nice broad curve)
-        n_tracker = ValueTracker(3)
-        
-        # Dynamic label for the slider
-        n_label = always_redraw(lambda: Text(
+        slider_label = always_redraw(lambda: Text(
             f"Dimension n = {int(n_tracker.get_value())}", 
             font_size=36, color=accent_color
-        ).next_to(axes, UP, buff=0.5))
-        self.add(n_label)
+        ).to_corner(UL))
         
-        # The mathematically exact probability curve morphing in real-time
-        dist_curve = always_redraw(lambda: axes.plot(
-            lambda x: np.sqrt(n_tracker.get_value() / (2 * PI)) * np.exp(-0.5 * n_tracker.get_value() * (x**2)),
-            color=accent_color,
-            use_smoothing=True
-        ))
+        self.play(FadeIn(slider_label))
         
-        # Shade the area under the curve
-        area = always_redraw(lambda: axes.get_area(dist_curve, color=accent_color, opacity=0.3))
+        # Generate 40 samples using statistical Z-scores for smooth animation
+        num_samples = 40
+        # Z-scores from a standard normal distribution
+        z_scores = np.random.normal(0, 1.2, num_samples) 
         
-        self.play(Create(dist_curve), FadeIn(area))
+        dots = VGroup()
+        for z in z_scores:
+            dot = Dot(color=dot_color, radius=0.06)
+            # Clip z-scores so they don't break the arccos math at n=2
+            safe_z = np.clip(z, -1.3, 1.3)
+            
+            # Updater: cos(theta) approaches 0 with std dev 1/sqrt(n)
+            dot.add_updater(lambda d, z_val=safe_z: d.move_to(
+                gauge_center + np.array([
+                    np.cos(np.arccos(np.clip(z_val / np.sqrt(n_tracker.get_value()), -1, 1))),
+                    np.sin(np.arccos(np.clip(z_val / np.sqrt(n_tracker.get_value()), -1, 1))),
+                    0
+                ]) * gauge_radius
+            ))
+            dots.add(dot)
+            
+        # Cascade the dots in at n=2 (broad spread)
+        self.play(LaggedStart(*[FadeIn(d, scale=0.5) for d in dots], lag_ratio=0.05), run_time=2)
         self.wait(1)
         
-        # Animate the dimension exploding to 1000
-        # rate_func=linear is usually best for exponential-feeling slider growth
-        self.play(n_tracker.animate.set_value(1000), run_time=5, rate_func=smooth)
+        # THE REVEAL: Slide n to 1000. 
+        # The updaters will pull all dots smoothly toward 90 degrees.
+        self.play(n_tracker.animate.set_value(1000), run_time=4.5, rate_func=smooth)
         self.wait(1)
         
-        # The crucial implication
-        implication = MathTex(
-            r"\cos\theta \approx 0 \quad\Rightarrow\quad \theta \approx 90^\circ"
-        ).scale(1.2).next_to(n_label, UP, buff=0.5)
+        # --- BEAT 4: FORMALIZE ---
+        dots.clear_updaters() # Lock them in place
         
-        self.play(Write(implication))
+        formula = MathTex(r"\cos\theta = \frac{x \cdot y}{\|x\| \|y\|} \approx 0").scale(1.2)
+        formula.next_to(gauge, DOWN, buff=1)
+        
+        self.play(Write(formula))
         self.wait(2)
         
-        # --- PART 4: APPLICATION (COSINE SIMILARITY) ---
-        self.play(FadeOut(axes, x_label, dist_curve, area, n_label, implication, formula))
+        # --- BEAT 5: SIGNAL VS NOISE PAYOFF ---
+        self.play(FadeOut(gauge, dots, formula, slider_label))
         
-        # Central query vector
-        query = Arrow(ORIGIN, UP*2, buff=0, color=WHITE, stroke_width=6)
-        query_label = MathTex("q").next_to(query.get_end(), UP)
+        # Bring back the reference vector
+        self.play(GrowArrow(ref_arrow), FadeIn(ref_label))
         
-        # Candidate vectors (mostly orthogonal, one aligned)
-        candidates = VGroup()
-        for i in range(12):
-            angle = np.random.uniform(0, 2*PI)
-            # Force one candidate to be closely aligned with query
-            if i == 5: angle = PI/2 + 0.1 
+        # Draw the "Noise" (almost perpendicular)
+        noise_arrows = VGroup()
+        for _ in range(15):
+            # Angles very close to 90 or 270 degrees
+            angle = np.random.choice([PI/2, -PI/2]) + np.random.uniform(-0.1, 0.1)
+            arrow = Arrow(ORIGIN, [2*np.cos(angle), 2*np.sin(angle), 0], buff=0, color=GRAY_C, stroke_width=2)
+            noise_arrows.add(arrow)
             
-            c = Arrow(ORIGIN, [2*np.cos(angle), 2*np.sin(angle), 0], buff=0, color=GRAY)
-            candidates.add(c)
+        self.play(LaggedStart(*[GrowArrow(a) for a in noise_arrows], lag_ratio=0.05), run_time=1.5)
+        
+        # Draw the "Signal" (meaningful alignment)
+        signal_arrows = VGroup()
+        for angle in [0.2, -0.15]:
+            arrow = Arrow(ORIGIN, [2.5*np.cos(angle), 2.5*np.sin(angle), 0], buff=0, color=highlight_color, stroke_width=6)
+            signal_arrows.add(arrow)
             
-        self.play(GrowArrow(query), Write(query_label))
-        self.play(LaggedStart(*[GrowArrow(c) for c in candidates], lag_ratio=0.05))
-        self.wait(1)
+        self.play(LaggedStart(*[GrowArrow(a) for a in signal_arrows], lag_ratio=0.2))
         
-        # Highlight the aligned candidate
-        best_match = candidates[5]
-        highlight_arc = Angle(best_match, query, radius=1, color=accent_color)
-        
-        self.play(
-            best_match.animate.set_color(accent_color).set_stroke(width=6),
-            Create(highlight_arc),
-            *[c.animate.set_opacity(0.2) for c in candidates if c != best_match]
-        )
-        
-        # Final Thesis
-        thesis = Text("Similarity by direction.", weight=BOLD, color=accent_color).to_corner(UL)
+        # Add the thesis text
+        thesis = Text("Genuine alignment stands out.", weight=BOLD, color=highlight_color).to_corner(UL)
         self.play(Write(thesis))
-        self.wait(2)
+        
+        self.wait(3)

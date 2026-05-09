@@ -46,7 +46,7 @@ class DataGeometry(Scene):
         ).scale(0.3)
         
         # Highlight a specific row to show extraction
-        row_highlight = BackgroundRectangle(table.get_rows()[1], color=accent_color, fill_opacity=0.3)
+        row_highlight = BackgroundRectangle(table.get_rows()[1], color=accent_color, fill_opacity=0.3, buff=0.05)
         
         data_label = Text("User Profile", font_size=24).next_to(table, DOWN, buff=0.4)
         data_group = VGroup(table, row_highlight, data_label).move_to(RIGHT * 4)
@@ -55,13 +55,12 @@ class DataGeometry(Scene):
         data_dot = Dot(color=accent_color).move_to(data_group)
 
         # -- Animate Montage --
-        self.play(
-            FadeIn(image_group, shift=UP*0.2),
-            FadeIn(sound_group, shift=UP*0.2),
-            FadeIn(data_group, shift=UP*0.2),
-            run_time=1.5
-        )
-        self.wait(1)
+        self.play(FadeIn(image_group, shift=UP*0.2), run_time=0.8)
+        self.wait(0.4)
+        self.play(FadeIn(sound_group, shift=UP*0.2), run_time=0.8)
+        self.wait(0.4)
+        self.play(FadeIn(data_group, shift=UP*0.2), run_time=0.8)
+        self.wait(0.8)
         
         # "Smash" them into math vectors
         self.play(
@@ -144,14 +143,4 @@ class DataGeometry(Scene):
         self.play(FadeIn(panel_projection, shift=UP*0.2))
         self.wait(1.5)
 
-        # Final Thesis Statement
-        # Dim the background grid to bring focus to the text
-        self.play(toolkit.animate.set_opacity(0.2))
-        
-        thesis = Text(
-            "Vectors let us do geometry\nwith complicated objects.",
-            font_size=36,
-            weight=BOLD
-        )
-        self.play(Write(thesis), run_time=2)
-        self.wait(3)
+        self.play(FadeOut(toolkit), run_time=1.0)

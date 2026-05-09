@@ -20,7 +20,7 @@ class IntrinsicDimension(ThreeDScene):
 
         point_coords = sp(lat_u, lon_v)
 
-        # Tangent basis — computed once, used for both the flat grid and axes
+        # Tangent basis — used for the flat local grid and axes
         e_lon = np.array([-np.sin(lon_v), np.cos(lon_v), 0.0])
         e_lat = np.array([
             -np.sin(lat_u) * np.cos(lon_v),
@@ -41,7 +41,40 @@ class IntrinsicDimension(ThreeDScene):
             stroke_color=grid_color,
             stroke_width=0.5,
         )
+        self.play(FadeIn(sphere), run_time=1.0)
 
+        # ── PHASE 1: 3D AXES + WHITE TEXT ─────────────────────────────────
+        # Show that the sphere lives in a 3D embedding space.
+        space_axes = ThreeDAxes(
+            x_range=[-3, 3, 1], y_range=[-3, 3, 1], z_range=[-3, 3, 1],
+            x_length=6, y_length=6, z_length=6,
+            axis_config={"include_ticks": False},
+        )
+        space_axes.get_x_axis().set_color(RED_C)
+        space_axes.get_y_axis().set_color(GREEN_C)
+        space_axes.get_z_axis().set_color(BLUE_C)
+
+        embed_text = Text(
+            "Embedding dimension: where it lives  (3D)", color=WHITE,
+        ).scale(0.55)
+        intrinsic_text = Text(
+            "Intrinsic dimension: coordinates needed  (2D)", color=highlight_color,
+        ).scale(0.55)
+        # Position both now so layout is set; reveal independently
+        VGroup(embed_text, intrinsic_text).arrange(DOWN, aligned_edge=LEFT).to_corner(UL)
+        embed_text.set_opacity(0)
+        intrinsic_text.set_opacity(0)
+        self.add_fixed_in_frame_mobjects(embed_text, intrinsic_text)
+
+        self.play(
+            Create(space_axes),
+            embed_text.animate.set_opacity(1),
+            run_time=1.2,
+        )
+        self.wait(1.0)
+
+        # ── PHASE 2: HIDE AXES, REVEAL INTRINSIC COORDS ───────────────────
+        # θ and φ start yellow — they belong to the intrinsic (2D) perspective.
         meridian = ParametricFunction(
             lambda u: sp(u, lon_v),
             t_range=[-PI / 2, PI / 2],
@@ -54,44 +87,33 @@ class IntrinsicDimension(ThreeDScene):
             color=highlight_color,
             stroke_width=4,
         )
-        marker = Dot3D(point=point_coords, radius=0.02, color=highlight_color)
+        marker = Dot3D(point=point_coords, radius=0.013, color=highlight_color)
 
-        self.play(FadeIn(sphere), run_time=1.0)
-        self.play(Create(meridian), Create(parallel), FadeIn(marker), run_time=1.5)
-        self.wait(0.8)
-
-        # ── LABELS ────────────────────────────────────────────────────────
         coord_label = MathTex(r"(\theta,\, \phi)", font_size=40).to_corner(UR, buff=0.55)
+        coord_label.set_color_by_tex(r"\theta", highlight_color)
+        coord_label.set_color_by_tex(r"\phi", highlight_color)
         coord_label.set_opacity(0)
         self.add_fixed_in_frame_mobjects(coord_label)
-        self.play(coord_label.animate.set_opacity(1), run_time=0.5)
 
-        embed_text = Text(
-            "Embedding dimension: where it lives  (3D)", color=WHITE,
-        ).scale(0.55)
-        intrinsic_text = Text(
-            "Intrinsic dimension: coordinates needed  (2D)", color=highlight_color,
-        ).scale(0.55)
-        text_group = VGroup(embed_text, intrinsic_text).arrange(DOWN, aligned_edge=LEFT)
-        text_group.to_corner(UL)
-        embed_text.set_opacity(0)
-        intrinsic_text.set_opacity(0)
-        self.add_fixed_in_frame_mobjects(text_group)
-
-        self.play(embed_text.animate.set_opacity(1), run_time=0.6)
-        self.wait(0.8)
-        self.play(intrinsic_text.animate.set_opacity(1), run_time=0.6)
-        self.wait(1.5)
         self.play(
-            text_group.animate.set_opacity(0),
+            FadeOut(space_axes),
+            Create(meridian), Create(parallel), FadeIn(marker),
+            coord_label.animate.set_opacity(1),
+            intrinsic_text.animate.set_opacity(1),
+            run_time=1.2,
+        )
+        self.wait(1.5)
+
+        # Fade all labels before zoom
+        self.play(
+            embed_text.animate.set_opacity(0),
+            intrinsic_text.animate.set_opacity(0),
             coord_label.animate.set_opacity(0),
             run_time=0.5,
         )
 
         # ── FLAT LOCAL GRID ────────────────────────────────────────────────
         # Straight lines in the tangent plane — flat by construction.
-        # These replace the curved meridian/parallel once we zoom in,
-        # so the viewer sees no curvature at all in the local view.
         grid_extent = 0.10
         n_lines = 7
         local_grid = VGroup()
@@ -108,8 +130,8 @@ class IntrinsicDimension(ThreeDScene):
             ))
 
         # ── ZOOM IN: LOCALLY FLAT ──────────────────────────────────────────
-        outward_phi = PI / 2 - lat_u   # 60° — outward normal polar angle
-        outward_theta = lon_v           # 45° — outward normal azimuth
+        outward_phi = PI / 2 - lat_u   # 60°
+        outward_theta = lon_v           # 45°
 
         self.move_camera(
             phi=outward_phi,
@@ -119,7 +141,6 @@ class IntrinsicDimension(ThreeDScene):
             run_time=3.0, rate_func=smooth,
         )
 
-        # Swap curved lines for the flat tangent-plane grid
         self.play(
             FadeOut(meridian, parallel),
             FadeIn(local_grid),
