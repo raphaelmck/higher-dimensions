@@ -8,6 +8,7 @@ class ClosingSynthesis(ThreeDScene):
         accent_color = TEAL_C
         highlight_color = YELLOW_D
         formula_color = WHITE
+        space_color = BLUE_D 
         
         # --- INTRODUCTION: THE SUMMARY POINTS ---
         self.camera.background_color = BLACK # Classic YouTube style
