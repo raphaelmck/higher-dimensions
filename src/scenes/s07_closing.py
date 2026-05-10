@@ -2,210 +2,123 @@ from manim import *
 import numpy as np
 
 
-class ClosingSynthesis(ThreeDScene):
+class ClosingSynthesis(Scene):
     def construct(self):
         accent = TEAL_C
-        highlight = YELLOW_D
 
-        # ── Pre-create all fixed-frame text (opacity=0, positioned, then revealed)
-        def fixed(mob):
-            mob.set_opacity(0)
-            self.add_fixed_in_frame_mobjects(mob)
-            return mob
+        # ═══ PHASE 1: THREE PANELS — sequential reveal ═══════════════════════
 
-        lbl_spatially = fixed(VGroup(
-            Text("Spatially —", font_size=28, weight=BOLD, color=WHITE),
-            Text("shapes, slices, and the structure of space itself", font_size=26, color=GRAY_B),
-        ).arrange(RIGHT, buff=0.25).to_edge(DOWN, buff=0.55))
+        pw, ph = 4.0, 3.6
 
-        lbl_math = fixed(VGroup(
-            Text("Mathematically —", font_size=28, weight=BOLD, color=WHITE),
-            Text("a language for any number of degrees of freedom", font_size=26, color=GRAY_B),
-        ).arrange(RIGHT, buff=0.25).to_edge(DOWN, buff=0.55))
-
-        lbl_comp = fixed(VGroup(
-            Text("Computationally —", font_size=28, weight=BOLD, color=WHITE),
-            Text("turning data into geometry", font_size=26, color=GRAY_B),
-        ).arrange(RIGHT, buff=0.25).to_edge(DOWN, buff=0.55))
-
-        line_a = fixed(Text(
-            "Vectors are not just arrows.",
-            font_size=38, weight=BOLD, color=WHITE,
-        ).move_to(UP * 0.9))
-
-        line_b = fixed(Text(
-            "They are a way of giving shape to information.",
-            font_size=32, color=GRAY_B,
-        ).move_to(UP * 0.05))
-
-        line_c = fixed(Text(
-            "And once information has shape,",
-            font_size=28, color=GRAY_C,
-        ).move_to(DOWN * 0.7))
-
-        line_d = fixed(Text(
-            "we can measure it, project it, compare it, compress it, and learn from it.",
-            font_size=26, color=GRAY_C,
-        ).move_to(DOWN * 1.25))
-
-        thesis = fixed(Text(
-            "Dimensions turn information into geometry.",
-            font_size=44, weight=BOLD, color=accent,
-        ).move_to(ORIGIN))
-
-        # ── Beat 1: Spatially — axes + sphere ────────────────────────────────
-        self.set_camera_orientation(phi=65 * DEGREES, theta=-45 * DEGREES)
-
-        axes = ThreeDAxes(
-            x_range=[-2.5, 2.5, 1], y_range=[-2.5, 2.5, 1], z_range=[-2.5, 2.5, 1],
-            x_length=5, y_length=5, z_length=5,
-            axis_config={"include_ticks": False},
-        )
-        axes.get_x_axis().set_color(RED_C)
-        axes.get_y_axis().set_color(GREEN_C)
-        axes.get_z_axis().set_color(BLUE_C)
-
-        sphere = Surface(
-            lambda u, v: np.array([
-                2.0 * np.cos(u) * np.cos(v),
-                2.0 * np.cos(u) * np.sin(v),
-                2.0 * np.sin(u),
-            ]),
-            u_range=[-PI / 2, PI / 2], v_range=[0, 2 * PI],
-            resolution=(20, 40),
-            fill_color=BLUE_E, fill_opacity=0.55,
-            stroke_color=BLUE_B, stroke_width=0.5,
-        )
-
-        self.play(Create(axes), FadeIn(sphere), run_time=1.2)
-        self.play(lbl_spatially.animate.set_opacity(1), run_time=0.5)
-        self.begin_ambient_camera_rotation(rate=0.14)
-        self.wait(4.0)
-        self.stop_ambient_camera_rotation()
-
-        # ── Beat 2: Mathematically — R^n formula and sliders ─────────────────
-        self.play(
-            FadeOut(sphere, axes),
-            lbl_spatially.animate.set_opacity(0),
-            run_time=0.6,
-        )
-        self.move_camera(phi=0 * DEGREES, theta=-90 * DEGREES, run_time=0.8)
-
-        # Vector formula
-        vec_eq = MathTex(
-            r"(x_1,\; x_2,\; \dots,\; x_n)", r"\;\in\;", r"\mathbb{R}^n",
-            font_size=52,
-        )
-        vec_eq[2].set_color(accent)
-        fixed(vec_eq)
-        vec_eq.move_to(UP * 1.0)
-
-        # Mini sliders — all in fixed-frame (screen) coordinates
-        slider_colors = [RED_C, GREEN_C, BLUE_C, GOLD_C, PURPLE_C, WHITE]
-        rng0 = np.random.default_rng(7)
-        tracks, knobs = [], []
-        sliders_group = VGroup()
-        for i in range(6):
-            c = slider_colors[i]
-            pos = rng0.uniform(0.1, 0.9)
-            track = Line(LEFT * 1.1, RIGHT * 1.1, color=c, stroke_width=2, stroke_opacity=0.5)
-            knob  = Dot(track.point_from_proportion(pos), color=c, radius=0.085)
-            lbl   = MathTex(f"x_{{{i+1}}}", font_size=22, color=c).next_to(track, LEFT, buff=0.14)
-            tracks.append(track)
-            knobs.append(knob)
-            sliders_group.add(VGroup(track, knob, lbl))
-
-        sliders_group.arrange(DOWN, buff=0.26).move_to(DOWN * 0.55)
-        fixed(sliders_group)
-
-        self.play(vec_eq.animate.set_opacity(1), run_time=0.7)
-        self.play(sliders_group.animate.set_opacity(1), run_time=0.6)
-        self.play(lbl_math.animate.set_opacity(1), run_time=0.4)
-
-        def knob_anims(seed):
-            rng = np.random.default_rng(seed)
-            return [
-                knob.animate.move_to(track.point_from_proportion(rng.uniform(0.05, 0.95)))
-                for track, knob in zip(tracks, knobs)
-            ]
-
-        self.play(*knob_anims(42), run_time=1.2, rate_func=smooth)
-        self.play(*knob_anims(99), run_time=1.0, rate_func=smooth)
-        self.wait(0.8)
-
-        # ── Beat 3: Computationally — swiss roll + data ───────────────────────
-        self.play(
-            vec_eq.animate.set_opacity(0),
-            sliders_group.animate.set_opacity(0),
-            lbl_math.animate.set_opacity(0),
-            run_time=0.5,
-        )
-        self.move_camera(phi=65 * DEGREES, theta=-50 * DEGREES, run_time=1.0)
-
-        def swiss_roll(u, v):
-            t = 1.5 * PI + 3.0 * PI * u
-            return np.array([t * np.cos(t) * 0.13, 2.0 * v - 1.0, t * np.sin(t) * 0.13])
-
-        roll = Surface(
-            swiss_roll,
-            u_range=[0, 1], v_range=[0, 1],
-            resolution=(30, 10),
-            fill_color=BLUE_E, fill_opacity=0.65,
-            stroke_color=BLUE_B, stroke_width=0.8,
-        )
-
-        rng2 = np.random.default_rng(42)
-        pts_on = VGroup(*[
-            Dot3D(
-                swiss_roll(rng2.uniform(0.05, 0.95), rng2.uniform(0.05, 0.95))
-                + rng2.normal(0, 0.035, 3),
-                radius=0.038, color=accent,
+        def make_box():
+            return RoundedRectangle(
+                width=pw, height=ph, corner_radius=0.18,
+                color=GRAY_D, fill_color=BLACK, fill_opacity=0.10, stroke_width=1.2,
             )
-            for _ in range(65)
-        ])
-        pts_off = VGroup(*[
-            Dot3D(
-                swiss_roll(rng2.uniform(0.05, 0.95), rng2.uniform(0.05, 0.95))
-                + rng2.normal(0, 0.35, 3),
-                radius=0.030, color=GRAY_C,
-            )
-            for _ in range(22)
-        ])
-        all_pts = [*pts_off, *pts_on]
 
-        self.play(
-            Create(roll),
-            LaggedStart(*[FadeIn(d) for d in all_pts], lag_ratio=0.014),
-            run_time=1.8,
+        box1, box2, box3 = make_box(), make_box(), make_box()
+        panel_row = VGroup(box1, box2, box3).arrange(RIGHT, buff=0.38).move_to(UP * 0.85)
+        c1, c2, c3 = box1.get_center(), box2.get_center(), box3.get_center()
+
+        lbl1 = Text("Spatially",       font_size=22, weight=BOLD, color=WHITE).next_to(box1, DOWN, buff=0.22)
+        lbl2 = Text("Mathematically",  font_size=22, weight=BOLD, color=WHITE).next_to(box2, DOWN, buff=0.22)
+        lbl3 = Text("Computationally", font_size=22, weight=BOLD, color=WHITE).next_to(box3, DOWN, buff=0.22)
+        sub1 = Text("shapes, slices, and the structure of space", font_size=15, color=GRAY_B).next_to(lbl1, DOWN, buff=0.08)
+        sub2 = Text("a language for any degrees of freedom",      font_size=15, color=GRAY_B).next_to(lbl2, DOWN, buff=0.08)
+        sub3 = Text("turning data into geometry",                 font_size=15, color=GRAY_B).next_to(lbl3, DOWN, buff=0.08)
+
+        # ── Panel 1 visual: isometric cube ────────────────────────────────────
+        s = 0.82
+        dir_x = s * np.array([np.sqrt(3) / 2,  -0.5, 0])
+        dir_y = s * np.array([-np.sqrt(3) / 2, -0.5, 0])
+        dir_z = s * np.array([0, 1.0, 0])
+        iso_o = c1 - np.array([0, 0.21, 0])
+        vA, vB, vC = iso_o, iso_o + dir_x, iso_o + dir_y
+        vD, vE, vF = iso_o + dir_z, iso_o + dir_x + dir_z, iso_o + dir_y + dir_z
+
+        right_face = Polygon(vA, vB, vE, vD, fill_color=RED_C,   fill_opacity=0.14, stroke_color=RED_C,   stroke_width=1.6)
+        left_face  = Polygon(vA, vC, vF, vD, fill_color=GREEN_C, fill_opacity=0.14, stroke_color=GREEN_C, stroke_width=1.6)
+        top_face   = Polygon(vD, vE, vA, vF, fill_color=BLUE_C,  fill_opacity=0.14, stroke_color=BLUE_C,  stroke_width=1.6)
+        cube_ax_x  = Arrow(vA, vB, color=RED_C,   buff=0, stroke_width=3.0, tip_length=0.17, max_tip_length_to_length_ratio=0.35)
+        cube_ax_y  = Arrow(vA, vC, color=GREEN_C, buff=0, stroke_width=3.0, tip_length=0.17, max_tip_length_to_length_ratio=0.35)
+        cube_ax_z  = Arrow(vA, vD, color=BLUE_C,  buff=0, stroke_width=3.0, tip_length=0.17, max_tip_length_to_length_ratio=0.35)
+        p1_visual  = VGroup(right_face, left_face, top_face, cube_ax_x, cube_ax_y, cube_ax_z)
+
+        # ── Panel 2 visual: dimension counter ─────────────────────────────────
+        Rn2  = MathTex(r"\mathbb{R}^2",    font_size=58).move_to(c2)
+        Rn3  = MathTex(r"\mathbb{R}^3",    font_size=58).move_to(c2)
+        Rn10 = MathTex(r"\mathbb{R}^{10}", font_size=58).move_to(c2)
+        Rnn  = MathTex(r"\mathbb{R}^n",    font_size=58, color=accent).move_to(c2)
+
+        # ── Panel 3 visual: scatter + manifold curve ──────────────────────────
+        rng   = np.random.default_rng(42)
+        x_ext = 1.52
+
+        def on_pos():
+            x = rng.uniform(-x_ext, x_ext)
+            return c3 + np.array([x, 0.55 * np.sin(2.1 * x) + rng.normal(0, 0.07), 0])
+
+        curve_p3 = ParametricFunction(
+            lambda t: c3 + np.array([t, 0.55 * np.sin(2.1 * t), 0]),
+            t_range=[-x_ext, x_ext], color=accent, stroke_width=2.2,
         )
-        self.play(lbl_comp.animate.set_opacity(1), run_time=0.4)
-        self.begin_ambient_camera_rotation(rate=-0.14)
+        on_dots  = VGroup(*[Dot(on_pos(), radius=0.062, color=accent)  for _ in range(42)])
+        off_dots = VGroup(*[
+            Dot(c3 + np.array([rng.uniform(-x_ext, x_ext), rng.uniform(-1.35, 1.35), 0]),
+                radius=0.052, color=GRAY_C)
+            for _ in range(16)
+        ])
+
+        # ── Reveal Panel 1 ────────────────────────────────────────────────────
+        self.play(DrawBorderThenFill(box1), run_time=0.65)
+        self.play(
+            LaggedStart(
+                FadeIn(right_face), FadeIn(left_face), FadeIn(top_face),
+                GrowArrow(cube_ax_x), GrowArrow(cube_ax_y), GrowArrow(cube_ax_z),
+                lag_ratio=0.18,
+            ),
+            run_time=1.3,
+        )
+        self.play(FadeIn(lbl1, sub1, shift=UP * 0.06), run_time=0.45)
+        self.wait(0.25)
+
+        # ── Reveal Panel 2 ────────────────────────────────────────────────────
+        self.play(DrawBorderThenFill(box2), run_time=0.65)
+        self.play(FadeIn(Rn2, scale=0.8), run_time=0.35)
+        self.play(FadeOut(Rn2, scale=1.15), FadeIn(Rn3,  scale=0.8), run_time=0.35)
+        self.play(FadeOut(Rn3,  scale=1.15), FadeIn(Rn10, scale=0.8), run_time=0.35)
+        self.play(FadeOut(Rn10, scale=1.15), FadeIn(Rnn,  scale=0.8), run_time=0.40)
+        self.play(FadeIn(lbl2, sub2, shift=UP * 0.06), run_time=0.45)
+        self.wait(0.25)
+
+        # ── Reveal Panel 3 ────────────────────────────────────────────────────
+        self.play(DrawBorderThenFill(box3), run_time=0.65)
+        self.play(
+            LaggedStart(*[FadeIn(d, scale=0.4) for d in off_dots], lag_ratio=0.045),
+            run_time=0.85,
+        )
+        self.play(Create(curve_p3), run_time=0.7)
+        self.play(
+            LaggedStart(*[FadeIn(d, scale=0.4) for d in on_dots], lag_ratio=0.016),
+            run_time=0.85,
+        )
+        self.play(FadeIn(lbl3, sub3, shift=UP * 0.06), run_time=0.45)
+
         self.wait(3.5)
-        self.stop_ambient_camera_rotation()
 
-        # ── Final: Poetry then thesis ─────────────────────────────────────────
-        self.play(
-            FadeOut(roll, pts_on, pts_off),
-            lbl_comp.animate.set_opacity(0),
-            run_time=0.7,
+        all_panels = VGroup(
+            panel_row, p1_visual, lbl1, sub1,
+            Rnn, lbl2, sub2,
+            off_dots, on_dots, curve_p3, lbl3, sub3,
         )
-        self.move_camera(phi=0 * DEGREES, theta=-90 * DEGREES, run_time=0.8)
+        self.play(FadeOut(all_panels), run_time=0.8)
 
-        self.play(line_a.animate.set_opacity(1), run_time=0.8)
-        self.wait(1.0)
-        self.play(line_b.animate.set_opacity(1), run_time=0.8)
-        self.wait(0.8)
-        self.play(line_c.animate.set_opacity(1), run_time=0.6)
-        self.play(line_d.animate.set_opacity(1), run_time=0.6)
-        self.wait(2.0)
+        # ═══ PHASE 2: THESIS — written stroke by stroke ═══════════════════════
 
-        self.play(
-            line_a.animate.set_opacity(0),
-            line_b.animate.set_opacity(0),
-            line_c.animate.set_opacity(0),
-            line_d.animate.set_opacity(0),
-            run_time=0.7,
-        )
+        thesis = Text(
+            "Dimensions turn information into geometry.",
+            font_size=46, weight=BOLD, color=accent,
+        ).move_to(ORIGIN)
 
-        self.play(thesis.animate.set_opacity(1), run_time=1.2)
-        self.wait(4.0)
+        self.play(Write(thesis), run_time=2.8)
+        self.wait(4.5)
