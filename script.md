@@ -383,48 +383,7 @@ This is a good line. Keep it.
 
 ---
 
-## 7. Relativity and geometry of space itself
-
-**Time:** 9:35–10:25
-
-Keep this short and elegant.
-
-**Narration**
-
-“And dimensions are not only useful for data.”
-
-“In physics, spacetime is modeled as a four-dimensional manifold: three dimensions of space and one of time.”
-
-“But the important idea is not just ‘add another coordinate.’”
-
-“The important idea is geometry.”
-
-“In ordinary Euclidean space, distance is measured one way.”
-
-“In relativity, spacetime has a different metric — a different rule for measuring intervals.”
-
-“So again, dimension is only the beginning. What matters is the geometry you put on it.”
-
-**Animation notes**
-
-* Show Euclidean distance:
-  [
-  ds^2 = dx^2+dy^2+dz^2
-  ]
-* Then show spacetime interval:
-  [
-  ds^2 = -c^2dt^2+dx^2+dy^2+dz^2
-  ]
-* Do not explain deeply; just show contrast.
-* Animate a grid bending slightly to suggest curved spacetime.
-* Text:
-  **“Coordinates + metric = geometry.”**
-
-This gives the video intellectual range without becoming a relativity lecture.
-
----
-
-## 8. Closing synthesis
+## 7. Closing synthesis
 
 **Time:** 10:25–11:00
 
