@@ -75,11 +75,11 @@ class ManifoldHypothesis(ThreeDScene):
             for _ in range(50)
         ])
 
+        # Cube appears first to establish the space, then points scatter inside it
+        self.play(Create(cube), rn_label.animate.set_opacity(1), run_time=1.0)
         self.play(
-            Create(cube),
             LaggedStart(*[FadeIn(d) for d in ambient_dots], lag_ratio=0.015),
-            rn_label.animate.set_opacity(1),
-            run_time=1.5,
+            run_time=1.2,
         )
         self.wait(0.5)
 
@@ -118,7 +118,7 @@ class ManifoldHypothesis(ThreeDScene):
         self.play(manifold_lbl.animate.set_opacity(1), run_time=0.6)
 
         # Spin to show the 3D structure from multiple angles
-        self.begin_ambient_camera_rotation(rate=0.18)
+        self.begin_ambient_camera_rotation(rate=-0.18)
         self.wait(3.5)
         self.stop_ambient_camera_rotation()
 
@@ -148,37 +148,9 @@ class ManifoldHypothesis(ThreeDScene):
         )
         self.wait(0.5)
         self.play(FadeOut(spiral_path, trail_dot), run_time=0.4)
-
-        # ── Beat 5: Two coordinates — the hidden low-dimensional structure ──
         self.play(FadeOut(ambient_dots, cube), rn_label.animate.set_opacity(0), run_time=0.5)
 
-        p0 = swiss_roll(0.5, 0.5)
-        du = 0.01
-        e_u_raw = (swiss_roll(0.5 + du, 0.5) - swiss_roll(0.5 - du, 0.5)) / (2 * du)
-        e_u = e_u_raw / np.linalg.norm(e_u_raw)
-        e_v = np.array([0.0, 1.0, 0.0])
-        ax_len = 0.55
-
-        u_arrow = Arrow3D(
-            start=p0, end=p0 + e_u * ax_len,
-            color=RED_C, thickness=0.014, height=0.11, base_radius=0.045,
-        )
-        v_arrow = Arrow3D(
-            start=p0, end=p0 + e_v * ax_len,
-            color=GREEN_C, thickness=0.014, height=0.11, base_radius=0.045,
-        )
-
-        coord_formula = MathTex(
-            r"(u,\, v) \;\mapsto\; x \in \mathbb{R}^n", font_size=36,
-        ).to_corner(UL, buff=0.55)
-        coord_formula.set_opacity(0)
-        self.add_fixed_in_frame_mobjects(coord_formula)
-
-        self.play(FadeIn(u_arrow), FadeIn(v_arrow), coord_formula.animate.set_opacity(1), run_time=0.8)
-        self.wait(1.5)
-        self.play(FadeOut(u_arrow, v_arrow), coord_formula.animate.set_opacity(0), run_time=0.5)
-
-        # ── Beat 6: Unroll — curved outside, simple inside ─────────────────
+        # ── Beat 5: Unroll — curved outside, simple inside ─────────────────
         def flat_roll(u, v):
             return np.array([u * 4.0 - 2.0, 2.0 * v - 1.0, 0.0])
 
