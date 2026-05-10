@@ -46,7 +46,7 @@ class ManifoldHypothesis(ThreeDScene):
         # ── Beat 2: Ambient space — a huge, mostly empty cube ─────────────
         self.move_camera(phi=65 * DEGREES, theta=-50 * DEGREES, run_time=1.5)
 
-        def box_edges(sx, sy, sz, color=GRAY_D, opacity=0.30):
+        def box_edges(sx, sy, sz, color=GRAY_B, opacity=0.7):
             corners = np.array([
                 [-sx, -sy, -sz], [-sx, -sy,  sz], [-sx,  sy, -sz], [-sx,  sy,  sz],
                 [ sx, -sy, -sz], [ sx, -sy,  sz], [ sx,  sy, -sz], [ sx,  sy,  sz],
@@ -56,32 +56,36 @@ class ManifoldHypothesis(ThreeDScene):
                 for j in range(i + 1, 8):
                     if np.sum(np.abs(corners[i] - corners[j]) > 0.01) == 1:
                         lines.add(Line(corners[i], corners[j],
-                                       color=color, stroke_opacity=opacity, stroke_width=1.2))
+                                       color=color, stroke_opacity=opacity, stroke_width=2.0))
             return lines
-
-        cube = box_edges(2.1, 1.2, 2.1)
 
         rn_label = MathTex(r"\mathbb{R}^n", font_size=36, color=GRAY_B).to_corner(UR, buff=0.55)
         rn_label.set_opacity(0)
         self.add_fixed_in_frame_mobjects(rn_label)
 
-        # Sparse ambient dots — represent the vast empty majority of the space
+        # Sparse ambient dots — scatter first, cube engulfs them
         rng = np.random.default_rng(7)
         ambient_dots = VGroup(*[
             Dot3D(
-                point=np.array([rng.uniform(-2, 2), rng.uniform(-1.1, 1.1), rng.uniform(-2, 2)]),
+                point=np.array([rng.uniform(-1.9, 1.9), rng.uniform(-1.0, 1.0), rng.uniform(-1.9, 1.9)]),
                 radius=0.025, color=GRAY_D,
             )
             for _ in range(50)
         ])
 
-        # Cube appears first to establish the space, then points scatter inside it
-        self.play(Create(cube), rn_label.animate.set_opacity(1), run_time=1.0)
         self.play(
             LaggedStart(*[FadeIn(d) for d in ambient_dots], lag_ratio=0.015),
             run_time=1.2,
         )
-        self.wait(0.5)
+        self.wait(0.3)
+
+        # Cube materialises around the scattered points
+        cube = box_edges(2.1, 1.2, 2.1)
+        self.play(Create(cube), rn_label.animate.set_opacity(1), run_time=1.0)
+        self.wait(0.8)
+
+        # Both fade out to clear the stage for the manifold
+        self.play(FadeOut(cube, ambient_dots), rn_label.animate.set_opacity(0), run_time=0.8)
 
         # ── Beat 3: The manifold — data concentrates on a thin structure ───
         roll = Surface(
@@ -126,11 +130,7 @@ class ManifoldHypothesis(ThreeDScene):
 
         # ── Beat 4: Dot travels along the manifold ─────────────────────────
         # Moving along the surface changes the data smoothly.
-        self.play(
-            FadeOut(data_pts),
-            ambient_dots.animate.set_opacity(0.1),
-            run_time=0.5,
-        )
+        self.play(FadeOut(data_pts), run_time=0.5)
 
         spiral_path = ParametricFunction(
             lambda t: swiss_roll(0.05 + t * 0.9, 0.08 + t * 0.84),
@@ -148,7 +148,6 @@ class ManifoldHypothesis(ThreeDScene):
         )
         self.wait(0.5)
         self.play(FadeOut(spiral_path, trail_dot), run_time=0.4)
-        self.play(FadeOut(ambient_dots, cube), rn_label.animate.set_opacity(0), run_time=0.5)
 
         # ── Beat 5: Unroll — curved outside, simple inside ─────────────────
         def flat_roll(u, v):
