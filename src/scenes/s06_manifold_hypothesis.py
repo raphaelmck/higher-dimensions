@@ -14,7 +14,6 @@ class ManifoldHypothesis(ThreeDScene):
             return np.array([t * np.cos(t) * scale, 2.0 * v - 1.0, t * np.sin(t) * scale])
 
         # ── Beat 1: Noise wall ─────────────────────────────────────────────
-        # A random point in pixel space is almost always noise.
         self.set_camera_orientation(phi=0 * DEGREES, theta=-90 * DEGREES)
 
         def noise_grid(seed):
@@ -41,15 +40,47 @@ class ManifoldHypothesis(ThreeDScene):
         )
         self.play(FadeIn(noise_label), run_time=0.4)
         self.wait(1.0)
-        self.play(FadeOut(noises, noise_label, shift=DOWN * 0.1), run_time=0.7)
+        self.play(FadeOut(noises, noise_label, shift=DOWN * 0.1), run_time=0.5)
 
-        # ── Beat 2: Ambient space — a huge, mostly empty cube ─────────────
-        self.move_camera(phi=65 * DEGREES, theta=-50 * DEGREES, run_time=1.5)
+        # ── Beat 2: Swiss roll appears as camera swings into 3D ───────────
+        # Pass roll creation as added_anims so nothing is blank during the
+        # camera move — the surface materialises while the view rotates in.
+        roll = Surface(
+            swiss_roll,
+            u_range=[0, 1], v_range=[0, 1],
+            resolution=(32, 12),
+            fill_opacity=0.65,
+            fill_color=surface_color,
+            stroke_color=grid_color,
+            stroke_width=0.8,
+        )
 
-        def box_edges(sx, sy, sz, color=GRAY_B, opacity=0.7):
+        self.move_camera(
+            phi=65 * DEGREES, theta=-50 * DEGREES,
+            run_time=2.0,
+            added_anims=[Create(roll)],
+        )
+
+        # Dense data points on the surface
+        rng2 = np.random.default_rng(42)
+        data_pts = VGroup(*[
+            Dot3D(
+                point=swiss_roll(rng2.uniform(0.05, 0.95), rng2.uniform(0.05, 0.95))
+                      + rng2.normal(0, 0.03, 3),
+                radius=0.04, color=accent,
+            )
+            for _ in range(90)
+        ])
+        self.play(LaggedStart(*[FadeIn(d) for d in data_pts], lag_ratio=0.015), run_time=1.5)
+        self.wait(0.4)
+
+        # ── Beat 3: Cube — ambient space context ───────────────────────────
+        # A proper cube (equal sides) materialises to show these data points
+        # live inside a much larger R^n space, then fades; data stays.
+        def box_edges(s, color=GRAY_B, opacity=0.7):
             corners = np.array([
-                [-sx, -sy, -sz], [-sx, -sy,  sz], [-sx,  sy, -sz], [-sx,  sy,  sz],
-                [ sx, -sy, -sz], [ sx, -sy,  sz], [ sx,  sy, -sz], [ sx,  sy,  sz],
+                [-s, -s, -s], [-s, -s,  s], [-s,  s, -s], [-s,  s,  s],
+                [ s, -s, -s], [ s, -s,  s], [ s,  s, -s], [ s,  s,  s],
             ])
             lines = VGroup()
             for i in range(8):
@@ -63,56 +94,14 @@ class ManifoldHypothesis(ThreeDScene):
         rn_label.set_opacity(0)
         self.add_fixed_in_frame_mobjects(rn_label)
 
-        # Sparse ambient dots — scatter first, cube engulfs them
-        rng = np.random.default_rng(7)
-        ambient_dots = VGroup(*[
-            Dot3D(
-                point=np.array([rng.uniform(-1.9, 1.9), rng.uniform(-1.0, 1.0), rng.uniform(-1.9, 1.9)]),
-                radius=0.025, color=GRAY_D,
-            )
-            for _ in range(50)
-        ])
-
-        self.play(
-            LaggedStart(*[FadeIn(d) for d in ambient_dots], lag_ratio=0.015),
-            run_time=1.2,
-        )
-        self.wait(0.3)
-
-        # Cube materialises around the scattered points
-        cube = box_edges(2.1, 1.2, 2.1)
+        cube = box_edges(2.2)
         self.play(Create(cube), rn_label.animate.set_opacity(1), run_time=1.0)
         self.wait(0.8)
 
-        # Both fade out to clear the stage for the manifold
-        self.play(FadeOut(cube, ambient_dots), rn_label.animate.set_opacity(0), run_time=0.8)
+        # Cube fades; data points remain — the manifold is the real structure
+        self.play(FadeOut(cube), rn_label.animate.set_opacity(0), run_time=0.8)
 
-        # ── Beat 3: The manifold — data concentrates on a thin structure ───
-        roll = Surface(
-            swiss_roll,
-            u_range=[0, 1], v_range=[0, 1],
-            resolution=(32, 12),
-            fill_opacity=0.65,
-            fill_color=surface_color,
-            stroke_color=grid_color,
-            stroke_width=0.8,
-        )
-        self.play(Create(roll), run_time=1.8)
-
-        # Dense data points tightly clustered on the surface — the contrast
-        # with the sparse ambient dots makes "concentration" literal.
-        rng2 = np.random.default_rng(42)
-        data_pts = VGroup(*[
-            Dot3D(
-                point=swiss_roll(rng2.uniform(0.05, 0.95), rng2.uniform(0.05, 0.95))
-                      + rng2.normal(0, 0.03, 3),
-                radius=0.04, color=accent,
-            )
-            for _ in range(90)
-        ])
-        self.play(LaggedStart(*[FadeIn(d) for d in data_pts], lag_ratio=0.015), run_time=1.5)
-        self.wait(0.3)
-
+        # ── Beat 4: Label + spin ────────────────────────────────────────────
         manifold_lbl = Text(
             "real data occupies a thin, structured region",
             font_size=28, color=accent,
@@ -121,15 +110,13 @@ class ManifoldHypothesis(ThreeDScene):
         self.add_fixed_in_frame_mobjects(manifold_lbl)
         self.play(manifold_lbl.animate.set_opacity(1), run_time=0.6)
 
-        # Spin to show the 3D structure from multiple angles
         self.begin_ambient_camera_rotation(rate=-0.18)
         self.wait(3.5)
         self.stop_ambient_camera_rotation()
 
         self.play(manifold_lbl.animate.set_opacity(0), run_time=0.4)
 
-        # ── Beat 4: Dot travels along the manifold ─────────────────────────
-        # Moving along the surface changes the data smoothly.
+        # ── Beat 5: Dot travels along the manifold ─────────────────────────
         self.play(FadeOut(data_pts), run_time=0.5)
 
         spiral_path = ParametricFunction(
@@ -149,7 +136,7 @@ class ManifoldHypothesis(ThreeDScene):
         self.wait(0.5)
         self.play(FadeOut(spiral_path, trail_dot), run_time=0.4)
 
-        # ── Beat 5: Unroll — curved outside, simple inside ─────────────────
+        # ── Beat 6: Unroll — curved outside, simple inside ─────────────────
         def flat_roll(u, v):
             return np.array([u * 4.0 - 2.0, 2.0 * v - 1.0, 0.0])
 
