@@ -383,7 +383,7 @@ This is a good line. Keep it.
 
 ---
 
-## 8. Relativity and geometry of space itself
+## 7. Relativity and geometry of space itself
 
 **Time:** 9:35–10:25
 
@@ -424,7 +424,7 @@ This gives the video intellectual range without becoming a relativity lecture.
 
 ---
 
-## 9. Closing synthesis
+## 8. Closing synthesis
 
 **Time:** 10:25–11:00
 
