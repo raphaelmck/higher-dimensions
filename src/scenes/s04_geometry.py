@@ -115,8 +115,15 @@ class DataGeometry(Scene):
 
         # 3. Hyperplane (Decision Boundary)
         h_line = Line(DOWN*1.2 + LEFT*1.5, UP*1.2 + RIGHT*1.5, color=WHITE, stroke_width=2)
-        pts_left = VGroup(*[Dot(LEFT*np.random.uniform(0.5, 2) + UP*np.random.uniform(-1, 1), color=accent_color) for _ in range(5)])
-        pts_right = VGroup(*[Dot(RIGHT*np.random.uniform(0.5, 2) + DOWN*np.random.uniform(-1, 1), color=secondary_color) for _ in range(5)])
+        # Fixed positions verified to lie on the correct side of y = 0.8x
+        pts_left = VGroup(*[Dot(p, color=accent_color) for p in [
+            LEFT*1.4 + UP*0.6, LEFT*1.0 + UP*0.9, LEFT*0.7 + UP*0.3,
+            LEFT*1.2 + DOWN*0.1, LEFT*0.5 + UP*0.7,
+        ]])
+        pts_right = VGroup(*[Dot(p, color=secondary_color) for p in [
+            RIGHT*1.4 + DOWN*0.6, RIGHT*1.0 + DOWN*0.9, RIGHT*0.7 + DOWN*0.3,
+            RIGHT*1.2 + UP*0.1, RIGHT*0.5 + DOWN*0.7,
+        ]])
         boundary_visual = VGroup(h_line, pts_left, pts_right)
         panel_boundary = create_tool_panel("Decision Boundary", r"w^\top x + b = 0", boundary_visual)
 
