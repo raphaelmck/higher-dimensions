@@ -50,24 +50,32 @@ class ManifoldHypothesis(ThreeDScene):
         pts_on = [
             swiss_roll(rng2.uniform(0.05, 0.95), rng2.uniform(0.05, 0.95))
             + rng2.normal(0, 0.03, 3)
-            for _ in range(78)
+            for _ in range(130)
         ]
         pts_off = [
             swiss_roll(rng2.uniform(0.05, 0.95), rng2.uniform(0.05, 0.95))
-            + rng2.normal(0, 0.28, 3)
-            for _ in range(17)
+            + rng2.normal(0, 0.32, 3)
+            for _ in range(45)
         ]
 
-        data_pts = VGroup(*[
-            Dot3D(point=p, radius=0.04, color=accent)
-            for p in pts_on + pts_off
-        ])
+        def glowing_dot(pos):
+            halo = Sphere(radius=0.10, color=accent)
+            halo.move_to(pos)
+            halo.set_opacity(0.12)
+            core = Dot3D(point=pos, radius=0.04, color=accent)
+            return VGroup(halo, core)
+
+        on_roll_pts  = VGroup(*[glowing_dot(p) for p in pts_on])
+        off_roll_pts = VGroup(*[Dot3D(point=p, radius=0.035, color=GRAY_C) for p in pts_off])
+        data_pts = VGroup(off_roll_pts, on_roll_pts)
+
+        all_dot_list = [*off_roll_pts, *on_roll_pts]
 
         # Camera and data cloud arrive together — no blank frames
         self.move_camera(
             phi=65 * DEGREES, theta=-50 * DEGREES,
             run_time=2.0,
-            added_anims=[LaggedStart(*[FadeIn(d) for d in data_pts], lag_ratio=0.018)],
+            added_anims=[LaggedStart(*[FadeIn(d) for d in all_dot_list], lag_ratio=0.012)],
         )
         self.wait(0.5)
 
