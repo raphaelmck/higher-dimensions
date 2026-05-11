@@ -151,3 +151,56 @@ class DataGeometry(Scene):
         self.wait(1.5)
 
         self.play(FadeOut(toolkit), run_time=1.0)
+
+
+class PanelGlow(Scene):
+    def construct(self):
+        accent_color = TEAL_C
+        secondary_color = YELLOW_D
+
+        def create_tool_panel(title_str, math_str, visual_vgroup):
+            box = RoundedRectangle(width=5.5, height=3, corner_radius=0.2, color=GRAY_D, fill_opacity=0.1)
+            title = Text(title_str, font_size=20, color=GRAY_B).next_to(box.get_top(), DOWN, buff=0.2)
+            math_text = MathTex(math_str, font_size=32).next_to(box.get_bottom(), UP, buff=0.2)
+            visual_vgroup.move_to(box.get_center())
+            return VGroup(box, title, visual_vgroup, math_text)
+
+        d_dot1 = Dot(LEFT*1 + DOWN*0.2, color=accent_color)
+        d_dot2 = Dot(RIGHT*1 + UP*0.5, color=secondary_color)
+        d_line = DashedLine(d_dot1.get_center(), d_dot2.get_center(), color=WHITE)
+        panel_distance = create_tool_panel("Similarity", r"\|x - y\|", VGroup(d_dot1, d_dot2, d_line))
+
+        v1 = Arrow(ORIGIN, RIGHT*1.5 + UP*0.5, buff=0, color=accent_color)
+        v2 = Arrow(ORIGIN, RIGHT*1.2 + DOWN*0.8, buff=0, color=secondary_color)
+        panel_angle = create_tool_panel("Alignment", r"x \cdot y", VGroup(v1, v2, Angle(v1, v2, radius=0.5, color=WHITE)))
+
+        h_line = Line(DOWN*1.2 + LEFT*1.5, UP*1.2 + RIGHT*1.5, color=WHITE, stroke_width=2)
+        pts_left = VGroup(*[Dot(p, color=accent_color) for p in [LEFT*1.4+UP*0.6, LEFT*1.0+UP*0.9, LEFT*0.7+UP*0.3, LEFT*1.2+DOWN*0.1, LEFT*0.5+UP*0.7]])
+        pts_right = VGroup(*[Dot(p, color=secondary_color) for p in [RIGHT*1.4+DOWN*0.6, RIGHT*1.0+DOWN*0.9, RIGHT*0.7+DOWN*0.3, RIGHT*1.2+UP*0.1, RIGHT*0.5+DOWN*0.7]])
+        panel_boundary = create_tool_panel("Decision Boundary", r"w^\top x + b = 0", VGroup(h_line, pts_left, pts_right))
+
+        p_line = Line(LEFT*2, RIGHT*2, color=GRAY_C, stroke_width=2)
+        p_dot = Dot(UP*1 + LEFT*0.5, color=accent_color)
+        p_proj_dot = Dot(LEFT*0.5, color=secondary_color)
+        p_drop = DashedLine(p_dot.get_center(), p_proj_dot.get_center(), color=WHITE)
+        panel_projection = create_tool_panel("Compression", r"x \mapsto Px", VGroup(p_line, p_dot, p_drop, p_proj_dot, RightAngle(p_line, p_drop, length=0.2, quadrant=(1,-1))))
+
+        toolkit = VGroup(panel_distance, panel_angle, panel_boundary, panel_projection)
+        toolkit.arrange_in_grid(2, 2, buff=0.5)
+        self.add(toolkit)
+        self.wait(0.3)
+
+        # Sequential rectangle pulse — outer halo + crisp edge, smooth in/out
+        boxes = [panel[0] for panel in [panel_distance, panel_angle, panel_boundary, panel_projection]]
+        for box in boxes:
+            halo = box.copy().set_fill(opacity=0).set_stroke(WHITE, width=10, opacity=0)
+            edge = box.copy().set_fill(opacity=0).set_stroke(WHITE, width=1.5, opacity=0)
+            self.add(halo, edge)
+            self.play(
+                halo.animate.set_stroke(opacity=0.12),
+                edge.animate.set_stroke(opacity=0.75),
+                rate_func=there_and_back_with_pause,
+                run_time=1.4,
+            )
+            self.remove(halo, edge)
+        self.wait(1.0)
